@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
   try {
     console.log(`Manually approving: ${item.localTitle}`);
-    await importSeriesAction(item.remoteId, item.filePath); // filePath is komgaId
+    await importSeriesAction(item.remoteId);
     
     queue.remove(item.id);
     return NextResponse.json({ success: true });

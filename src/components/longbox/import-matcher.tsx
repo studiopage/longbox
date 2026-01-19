@@ -14,7 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
-export function ImportMatcher({ term, komgaId }: { term: string, komgaId: string }) {
+export function ImportMatcher({ term }: { term: string }) {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState<number | null>(null);
@@ -46,8 +46,7 @@ export function ImportMatcher({ term, komgaId }: { term: string, komgaId: string
   const handleImport = async (cvId: number) => {
     setImporting(cvId);
     try {
-      // PASS komgaId HERE 👇
-      const res = await importSeriesAction(cvId.toString(), komgaId);
+      const res = await importSeriesAction(cvId.toString());
       setImporting(null);
       
       if (res.success) {

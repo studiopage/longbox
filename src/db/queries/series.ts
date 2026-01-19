@@ -5,7 +5,18 @@ import { unstable_noStore as noStore } from 'next/cache';
 
 export async function getRecentSeries() {
   noStore(); 
-  return await db.select().from(series).orderBy(desc(series.start_year));
+  return await db.select({
+    id: series.id,
+    name: series.name,
+    publisher: series.publisher,
+    year: series.year,
+    description: series.description,
+    status: series.status,
+    thumbnail_url: series.thumbnail_url,
+    cv_id: series.cv_id,
+    created_at: series.created_at,
+    updated_at: series.updated_at,
+  }).from(series).orderBy(desc(series.year));
 }
 
 // NEW: Fetch details + Request Status

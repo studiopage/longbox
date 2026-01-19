@@ -22,7 +22,7 @@ export default async function RequestsPage() {
     createdAt: requests.created_at,
     issueTitle: issues.title,
     issueNumber: issues.issue_number,
-    seriesTitle: series.title,
+    seriesTitle: series.name,
     seriesId: series.id,
     seriesThumb: series.thumbnail_url,
     kapowarrRef: requests.kapowarr_reference

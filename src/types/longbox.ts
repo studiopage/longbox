@@ -5,13 +5,17 @@ export type SeriesStatus = 'ongoing' | 'ended' | 'canceled';
 // The "Truth" (Metadata from ComicVine/GCD)
 export interface Series {
   id: string; // UUID
-  title: string;
-  start_year: number;
+  name: string;
+  year: number | null;
   publisher: string | null;
   description: string | null;
-  status: SeriesStatus;
+  status: string | null;
   thumbnail_url: string | null;
-  comicvine_id: string | null;
+  cv_id: number | null;
+  // Legacy fields for compatibility
+  title?: string; // Alias for name
+  start_year?: number | null; // Alias for year
+  comicvine_id?: string | null; // Alias for cv_id
 }
 
 // The "Request" (User Action)

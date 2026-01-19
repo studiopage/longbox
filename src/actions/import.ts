@@ -19,7 +19,9 @@ export async function importAndRequestSeries(formData: FormData) {
 
   try {
     // 1. Check if we already have it
-    const existing = await db.select().from(series).where(eq(series.comicvine_id, cvId)).limit(1);
+    const existing = await db.select({
+      id: series.id,
+    }).from(series).where(eq(series.cv_id, parseInt(cvId))).limit(1);
     
     if (existing.length > 0) {
       seriesId = existing[0].id;
@@ -27,12 +29,12 @@ export async function importAndRequestSeries(formData: FormData) {
       // 2. Insert new Series
       await db.insert(series).values({
         id: seriesId,
-        title,
-        start_year: year,
+        name: title,
+        year: year,
         publisher,
         description,
         status: 'ongoing',
-        comicvine_id: cvId,
+        cv_id: parseInt(cvId),
         thumbnail_url: image,
       });
     }

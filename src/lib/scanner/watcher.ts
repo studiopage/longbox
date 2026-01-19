@@ -2,7 +2,7 @@ import chokidar, { type FSWatcher } from 'chokidar';
 import yauzl from 'yauzl';
 import { parseStringPromise } from 'xml2js';
 import { db } from '@/db';
-import { books, fileSeries } from '@/db/schema';
+import { books, series } from '@/db/schema';
 import { eq, sql, count } from 'drizzle-orm';
 import { statSync, readdirSync } from 'fs';
 import { join } from 'path';
@@ -78,19 +78,17 @@ async function handleAdd(path: string) {
     const seriesName = metadata?.series || folderName;
     const pathSource = pathParts.slice(0, -1).join('/'); // Full folder path
     
-    // 1. Upsert Series
+    // 1. Upsert Series (by name, since we no longer track path_source)
     let seriesId: string;
-    const existingSeries = await db.select()
-      .from(fileSeries)
-      .where(eq(fileSeries.path_source, pathSource))
-      .limit(1);
+    const existingSeries = await db.query.series.findFirst({
+      where: eq(series.name, seriesName)
+    });
 
-    if (existingSeries.length > 0) {
-      seriesId = existingSeries[0].id;
+    if (existingSeries) {
+      seriesId = existingSeries.id;
     } else {
-      const [inserted] = await db.insert(fileSeries).values({
+      const [inserted] = await db.insert(series).values({
         name: seriesName,
-        path_source: pathSource
       }).returning();
       seriesId = inserted.id;
     }
@@ -122,7 +120,6 @@ async function handleAdd(path: string) {
       page_count: bookPageCount,
       file_path: path,
       file_size: fileSize,
-      pages_metadata: pages as any,
       
       // NEW FIELDS
       summary: bookSummary,
@@ -139,7 +136,6 @@ async function handleAdd(path: string) {
         publisher: bookPublisher,
         published_date: bookPublishedDate,
         page_count: bookPageCount,
-        pages_metadata: pages as any,
         file_size: fileSize,
         updated_at: new Date()
       }

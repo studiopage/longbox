@@ -58,7 +58,7 @@ export async function tryAutoMatchAction(komgaSeries: any) {
   // 4. Decision Matrix
   if (bestMatch && highestScore >= AUTO_IMPORT_THRESHOLD) {
     console.log(`✅ [AUTO] Importing "${cleanTitle}" -> "${bestMatch.name}" (${(highestScore*100).toFixed(1)}%)`);
-    await importSeriesAction(bestMatch.id.toString(), komgaSeries.id);
+    await importSeriesAction(bestMatch.id.toString());
     return { success: true, match: bestMatch.name, cvId: bestMatch.id };
 
   } else if (bestMatch && highestScore >= QUEUE_THRESHOLD) {

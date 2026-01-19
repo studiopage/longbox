@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { books, fileSeries } from '@/db/schema';
+import { books, series } from '@/db/schema';
 import { count } from 'drizzle-orm';
 
 export async function GET() {
   try {
     const [seriesCount, booksCount] = await Promise.all([
-      db.select({ count: count() }).from(fileSeries),
+      db.select({ count: count() }).from(series),
       db.select({ count: count() }).from(books),
     ]);
 

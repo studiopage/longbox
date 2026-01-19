@@ -25,15 +25,15 @@ export async function smartSearch(query: string): Promise<SearchResult[]> {
     // Local DB Search (Fastest)
     db.select({
       id: series.id,
-      title: series.title,
-      start_year: series.start_year,
+      title: series.name,
+      start_year: series.year,
       publisher: series.publisher,
       thumbnail_url: series.thumbnail_url
     })
     .from(series)
     .where(
         or(
-            ilike(series.title, `%${query}%`)
+            ilike(series.name, `%${query}%`)
         )
     )
     .limit(5),

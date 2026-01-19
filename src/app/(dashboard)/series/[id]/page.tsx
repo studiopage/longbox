@@ -11,20 +11,41 @@ import { redirect, notFound } from 'next/navigation';
 import { RequestButton } from '@/components/longbox/request-button';
 import { SyncIssuesButton } from '@/components/longbox/sync-issues-button';
 import { RequestAllButton } from '@/components/longbox/request-all-button';
-import { KomgaSyncButton } from '@/components/longbox/komga-sync-button';
 
 export default async function LocalSeriesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   
   // Fetch series and issues using direct queries (more reliable than relational API)
-  const [seriesData] = await db.select().from(series).where(eq(series.id, id)).limit(1);
+  const [seriesData] = await db.select({
+    id: series.id,
+    name: series.name,
+    publisher: series.publisher,
+    year: series.year,
+    description: series.description,
+    status: series.status,
+    thumbnail_url: series.thumbnail_url,
+    cv_id: series.cv_id,
+    created_at: series.created_at,
+    updated_at: series.updated_at,
+  }).from(series).where(eq(series.id, id)).limit(1);
   
   if (!seriesData) {
     return <div className="p-10">Series not found in library.</div>;
   }
 
   // Fetch issues for this series
-  const issuesData = await db.select()
+  const issuesData = await db.select({
+    id: issues.id,
+    series_id: issues.series_id,
+    cv_id: issues.cv_id,
+    issue_number: issues.issue_number,
+    title: issues.title,
+    cover_date: issues.cover_date,
+    thumbnail_url: issues.thumbnail_url,
+    status: issues.status,
+    read: issues.read,
+    created_at: issues.created_at,
+  })
     .from(issues)
     .where(eq(issues.series_id, id))
     .orderBy(asc(issues.cover_date));
@@ -56,7 +77,7 @@ export default async function LocalSeriesPage({ params }: { params: Promise<{ id
                     </Button>
                 </Link>
                 <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white shadow-black drop-shadow-md">
-                    {localSeries.title}
+                    {localSeries.name}
                 </h1>
                 <div className="flex items-center gap-3 text-white/80">
                     <Badge className="bg-primary text-primary-foreground border-none">
@@ -64,7 +85,7 @@ export default async function LocalSeriesPage({ params }: { params: Promise<{ id
                     </Badge>
                     <span className="font-bold">{localSeries.publisher}</span>
                     <span className="flex items-center text-sm font-medium">
-                        <Calendar className="w-4 h-4 mr-1.5 opacity-70" /> {localSeries.start_year}
+                        <Calendar className="w-4 h-4 mr-1.5 opacity-70" /> {localSeries.year}
                     </span>
                     <span className="text-sm opacity-60">•</span>
                     <span className="text-sm font-medium">{localSeries.issues?.length || 0} Issues</span>
@@ -82,7 +103,6 @@ export default async function LocalSeriesPage({ params }: { params: Promise<{ id
              </div>
          </div>
          <div className="flex gap-2">
-            <KomgaSyncButton seriesId={localSeries.id} />
             <SyncIssuesButton seriesId={localSeries.id} cvId={localSeries.comicvine_id} />
          </div>
       </div>

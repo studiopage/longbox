@@ -52,44 +52,4 @@ export async function testComicVineConnection(apiKey: string) {
   }
 }
 
-// 4. TEST KOMGA CONNECTION
-export async function testKomgaConnection(url: string, user: string, pass: string) {
-  if (!url) return { success: false, message: "No URL provided" };
-  
-  const cleanUrl = url.trim().replace(/\/$/, "");
-  const cleanUser = user.trim();
-  const cleanPass = pass.trim();
-
-  console.log(`🔍 [DEBUG] Testing V2 Endpoint: '${cleanUrl}/api/v2/users/me'`);
-
-  try {
-    // UPDATED TO V2 👇
-    const res = await fetch(`${cleanUrl}/api/v2/users/me`, {
-      headers: {
-        'Authorization': 'Basic ' + Buffer.from(cleanUser + ":" + cleanPass).toString('base64'),
-        'Accept': 'application/json',
-      },
-      cache: 'no-store'
-    });
-
-    console.log(`🔍 [DEBUG] Status: ${res.status}`);
-
-    if (res.ok) {
-        return { success: true, message: "Connected to Komga (v2)!" };
-    }
-    
-    // ... rest of the error handling ...
-    const errorText = await res.text();
-    console.log(`❌ [DEBUG] Server Reply: ${errorText.slice(0, 200)}...`);
-
-    if (res.status === 401) return { success: false, message: "Auth Failed: Check Password" };
-    if (res.status === 404) return { success: false, message: "404: Endpoint not found" };
-    
-    return { success: false, message: `Failed: ${res.status}` };
-
-  } catch (error) {
-    console.error("❌ [DEBUG] Network Error:", error);
-    return { success: false, message: "Network Error: Check IP/Port" };
-  }
-}
 

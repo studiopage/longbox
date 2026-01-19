@@ -22,10 +22,10 @@ export async function getDashboardStats() {
     // Fetch 6 most recently matched series for the "New Arrivals" shelf
     db.select({
         id: series.id,
-        title: series.title,
+        title: series.name,
         thumbnail_url: series.thumbnail_url,
         publisher: series.publisher,
-        year: series.start_year
+        year: series.year
     })
     .from(series)
     .innerJoin(libraryMapping, eq(libraryMapping.series_id, series.id))

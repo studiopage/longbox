@@ -19,7 +19,18 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   // Parallel Fetch: Get ALL local matches + Top 20 Remote matches
   const [localResults, remoteResults] = await Promise.all([
-    db.select().from(series).where(ilike(series.title, `%${query}%`)),
+    db.select({
+      id: series.id,
+      name: series.name,
+      publisher: series.publisher,
+      year: series.year,
+      description: series.description,
+      status: series.status,
+      thumbnail_url: series.thumbnail_url,
+      cv_id: series.cv_id,
+      created_at: series.created_at,
+      updated_at: series.updated_at,
+    }).from(series).where(ilike(series.name, `%${query}%`)),
     searchComicVine(query, 20)
   ]);
 

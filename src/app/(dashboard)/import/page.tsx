@@ -1,57 +1,70 @@
 import { db } from '@/db';
-import { series } from '@/db/schema';
-import { getAllKomgaSeries } from '@/lib/komga';
+import { series, books } from '@/db/schema';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Check, Library } from 'lucide-react';
 import { ImportMatcher } from '@/components/longbox/import-matcher';
 import { AutoScanner } from '@/components/longbox/auto-scanner';
 import { unstable_noStore as noStore } from 'next/cache';
+import { sql } from 'drizzle-orm';
 
 export default async function ImportPage() {
   noStore(); // Force dynamic rendering
   
-  // 1. Parallel Fetch: Local DB & Komga
-  let localSeries: { title: string }[] = [];
-  let komgaSeries: any[] = [];
+  // 1. Fetch file-based series and ComicVine series
+  let fileBasedSeries: Array<{ id: string; name: string; bookCount: number }> = [];
+  let comicVineSeries: { title: string }[] = [];
   
   try {
-    // Try to fetch from database
-    localSeries = await db.select({ title: series.title }).from(series);
+    // Fetch file-based series with book counts (series that have books)
+    fileBasedSeries = await db
+      .select({
+        id: series.id,
+        name: series.name,
+        bookCount: sql<number>`count(${books.id})`.mapWith(Number),
+      })
+      .from(series)
+      .innerJoin(books, sql`${series.id} = ${books.series_id}`)
+      .groupBy(series.id, series.name);
   } catch (error) {
     console.error("❌ Database query failed:", error);
-    // Continue with empty array if DB fails
-    localSeries = [];
+    fileBasedSeries = [];
   }
   
   try {
-    komgaSeries = await getAllKomgaSeries();
+    // Fetch ComicVine series (already imported)
+    // Note: This query may fail if database schema hasn't been migrated yet
+    // (old schema uses 'title', new schema uses 'name')
+    // If it fails, we'll just show all file-based series as "untracked"
+    comicVineSeries = await db.select({ title: series.name }).from(series);
   } catch (error) {
-    console.error("❌ Komga fetch failed:", error);
-    komgaSeries = [];
+    // Schema mismatch - database likely still has old 'title' column
+    // Just continue with empty array - all file series will show as untracked
+    console.warn("⚠️ ComicVine series query failed (schema mismatch?) - continuing with empty list:", error);
+    comicVineSeries = [];
   }
 
   // 2. Normalization Helper (strip case/special chars for better matching)
   const normalize = (s: string) => s.toLowerCase().trim().replace(/[^\w\s]/gi, '');
-  const localSet = new Set(localSeries.map(s => normalize(s.title)));
+  const comicVineSet = new Set(comicVineSeries.map(s => normalize(s.title)));
 
-  // 3. Filter: What is in Komga but NOT in Local?
-  const missing = komgaSeries
-    .filter(k => 
-      !localSet.has(normalize(k.metadata.title || '')) && 
-      !localSet.has(normalize(k.name))
-    )
-    .map(k => ({
-      id: k.id,
-      name: k.name,
+  // 3. Filter: What is in file system but NOT matched to ComicVine?
+  const missing = fileBasedSeries
+    .filter(fs => !comicVineSet.has(normalize(fs.name)))
+    .map(fs => ({
+      id: fs.id,
+      name: fs.name,
       metadata: {
-        title: k.metadata.title || k.name,
-        publisher: k.metadata.publisher || '',
-        status: k.metadata.status || '',
-        releaseDate: k.metadata.releaseDate || null,
+        title: fs.name,
+        publisher: '',
+        status: '',
+        releaseDate: null,
       },
-      booksCount: k.booksCount || 0,
+      booksCount: fs.bookCount || 0,
     }));
+
+  // Ensure stable array reference to prevent hydration mismatches
+  const missingArray = Array.isArray(missing) ? missing : [];
 
   return (
     <div className="p-8 space-y-6">
@@ -59,7 +72,7 @@ export default async function ImportPage() {
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Library Scanner</h1>
             <p className="text-muted-foreground">
-                Found {komgaSeries.length} series in Komga. {missing.length} are untracked.
+                Found {fileBasedSeries.length} series in library. {missingArray.length} need ComicVine matching.
             </p>
         </div>
       </div>
@@ -73,7 +86,7 @@ export default async function ImportPage() {
             <CardContent>
                 <div className="text-2xl font-bold text-green-500 flex items-center gap-2">
                     <Check className="w-5 h-5" />
-                    {komgaSeries.length - missing.length}
+                    {fileBasedSeries.length - missingArray.length}
                 </div>
             </CardContent>
         </Card>
@@ -84,16 +97,16 @@ export default async function ImportPage() {
             <CardContent>
                 <div className="text-2xl font-bold text-yellow-500 flex items-center gap-2">
                     <Library className="w-5 h-5" />
-                    {missing.length}
+                    {missingArray.length}
                 </div>
             </CardContent>
         </Card>
       </div>
 
       {/* AUTO-SCANNER WIDGET */}
-      {missing.length > 0 && (
+      {missingArray.length > 0 && (
         <div className="mb-8">
-            <AutoScanner untracked={missing} />
+            <AutoScanner untracked={missingArray} />
         </div>
       )}
 
@@ -103,13 +116,13 @@ export default async function ImportPage() {
             <CardTitle>Untracked Series</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-            {missing.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">
-                    All your Komga series are imported! 🎉
+            {missingArray.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground" key="empty-state">
+                    All your series are matched to ComicVine! 🎉
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {missing.map((item) => {
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" key="series-list">
+                    {missingArray.map((item) => {
                         const displayTitle = item.metadata.title || item.name;
                         return (
                             <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
@@ -126,7 +139,6 @@ export default async function ImportPage() {
                                 {/* The Intelligent Matcher Component */}
                                 <ImportMatcher 
                                     term={displayTitle} 
-                                    komgaId={item.id} 
                                 />
                             </div>
                         );

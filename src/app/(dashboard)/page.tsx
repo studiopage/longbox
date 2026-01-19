@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { getFreshSeries } from '@/lib/comicvine';
 import { db } from '@/db';
-import { requests, series } from '@/db/schema';
+import { requests, request, series } from '@/db/schema';
 import { desc, eq, count } from 'drizzle-orm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,24 +15,57 @@ export default async function HomePage() {
   // 1. Trending (Remote)
   // 2. Recent Requests (Local Join)
   // 3. Total Request Count (Local Agg)
-  const [freshSeries, recentRequests, requestStats] = await Promise.all([
-    getFreshSeries(),
-    db.select({
-        id: requests.id,
-        state: requests.status, // Note: field is 'status' in DB, mapped to UI
-        seriesTitle: series.title,
-        thumbnail: series.thumbnail_url,
-        seriesId: series.id
-    })
-    .from(requests)
-    .innerJoin(series, eq(requests.series_id, series.id))
-    .orderBy(desc(requests.created_at))
-    .limit(4),
-    
-    db.select({ count: count() }).from(requests)
-  ]);
+  let freshSeries: Awaited<ReturnType<typeof getFreshSeries>> = [];
+  let recentRequests: Array<{
+    id: string;
+    state: string;
+    seriesTitle: string | null;
+    thumbnail: string | null;
+    seriesId: string;
+  }> = [];
+  let totalRequests = 0;
 
-  const totalRequests = requestStats[0]?.count || 0;
+  try {
+    const [freshSeriesResult, recentRequestsResult, requestStats] = await Promise.allSettled([
+      getFreshSeries(),
+      // Use request table (user requests) - has 'state' column
+      db.select({
+          id: request.id,
+          state: request.state,
+          seriesTitle: series.name,
+          thumbnail: series.thumbnail_url,
+          seriesId: series.id
+      })
+      .from(request)
+      .innerJoin(series, eq(request.series_id, series.id))
+      .orderBy(desc(request.created_at))
+      .limit(4),
+      
+      db.select({ count: count() }).from(request)
+    ]);
+
+    // Handle results safely
+    if (freshSeriesResult.status === 'fulfilled') {
+      freshSeries = freshSeriesResult.value;
+    } else {
+      console.error('Failed to fetch fresh series:', freshSeriesResult.reason);
+    }
+
+    if (recentRequestsResult.status === 'fulfilled') {
+      recentRequests = recentRequestsResult.value;
+    } else {
+      console.error('Failed to fetch recent requests:', recentRequestsResult.reason);
+    }
+
+    if (requestStats.status === 'fulfilled') {
+      totalRequests = requestStats.value[0]?.count || 0;
+    } else {
+      console.error('Failed to fetch request stats:', requestStats.reason);
+    }
+  } catch (error) {
+    console.error('HomePage data fetch error:', error);
+    // Continue with empty/default values
+  }
 
   return (
     <main className="p-8 space-y-10">
@@ -76,8 +109,18 @@ export default async function HomePage() {
                                 <div className="min-w-0">
                                     <h4 className="font-medium truncate text-left">{req.seriesTitle}</h4>
                                     <div className="flex items-center gap-2 mt-1">
-                                        <Badge variant={req.state === 'sent_to_kapowarr' ? 'secondary' : 'default'} className="text-[10px] px-1 py-0 h-5">
-                                            {req.state === 'sent_to_kapowarr' ? 'QUEUED' : req.state}
+                                        <Badge 
+                                          variant={
+                                            req.state === 'fulfilled' ? 'secondary' : 
+                                            req.state === 'searching' ? 'default' : 
+                                            'outline'
+                                          } 
+                                          className="text-[10px] px-1 py-0 h-5"
+                                        >
+                                          {req.state === 'fulfilled' ? 'FULFILLED' : 
+                                           req.state === 'searching' ? 'SEARCHING' : 
+                                           req.state === 'requested' ? 'REQUESTED' : 
+                                           req.state.toUpperCase()}
                                         </Badge>
                                     </div>
                                 </div>

@@ -8,18 +8,19 @@ export const editionTypeEnum = pgEnum('edition_type', ['issue', 'tpb', 'omnibus'
 export const requestStateEnum = pgEnum('request_state', ['draft', 'requested', 'searching', 'fulfilled']);
 
 // Series table - The "Truth" (Metadata from ComicVine/GCD)
+// Series table - Unified table for both file-based and ComicVine series
 export const series = pgTable('series', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  title: varchar('title', { length: 255 }).notNull(),
-  start_year: integer('start_year').notNull(),
-  publisher: varchar('publisher', { length: 255 }),
-  description: text('description'),
-  status: seriesStatusEnum('status').notNull(),
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'), // For the summary
+  publisher: text('publisher'),
+  year: integer('year'),
+  status: text('status'), // "Continuing", "Ended", "ongoing", "ended", "canceled"
   thumbnail_url: text('thumbnail_url'),
-  comicvine_id: varchar('comicvine_id', { length: 100 }),
-  issue_count: integer('issue_count').default(0),
-  folder_path: text('folder_path'), // For Komga mapping later
-  komga_id: text('komga_id'), // Store the unique ID from Komga
+  
+  // External IDs
+  cv_id: integer('cv_id'), // ComicVine ID
+  
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
 });
@@ -64,6 +65,7 @@ export const issues = pgTable('issues', {
 
 // Relations
 export const seriesRelations = relations(series, ({ many }) => ({
+  books: many(books),
   requests: many(request),
   libraryMappings: many(libraryMapping),
   issues: many(issues),
@@ -117,10 +119,6 @@ export const systemSettings = pgTable('system_settings', {
   // ComicVine
   cv_api_key: text('cv_api_key'),
   
-  // Komga
-  komga_url: text('komga_url'),
-  komga_user: text('komga_user'),
-  komga_pass: text('komga_pass'), // Note: In a real multi-user app, encrypt this. For self-hosted/personal, plain text is acceptable MVP.
   
   // Kapowarr
   kapowarr_url: text('kapowarr_url'),
@@ -137,37 +135,48 @@ export const appSettings = pgTable('app_settings', {
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
-// File-based Series table - For physical file organization
-export const fileSeries = pgTable('file_series', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
-  path_source: text('path_source').notNull().unique(), // Folder path for auto-grouping
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-});
 
 // Books table - The Physical Files
 export const books = pgTable('books', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  series_id: uuid('series_id').references(() => fileSeries.id, { onDelete: 'cascade' }),
-  file_path: text('file_path').notNull().unique(),
-  file_size: bigint('file_size', { mode: 'number' }).notNull(),
-  hash: text('hash'),
-  number: text('number').notNull(), // "001"
-  title: text('title'),
-  page_count: integer('page_count').default(0),
-  pages_metadata: jsonb('pages_metadata').default('[]'), // Cache: [{index: 0, name: "01.jpg"}]
+  id: uuid('id').defaultRandom().primaryKey(),
+  series_id: uuid('series_id').references(() => series.id).notNull(),
   
-  // --- NEW METADATA FIELDS ---
+  // File Info
+  file_path: text('file_path').notNull().unique(),
+  file_size: integer('file_size').notNull(),
+  
+  // Metadata
+  title: text('title').notNull(),
+  number: text('number'), // "001", "1", "Annual 1"
+  page_count: integer('page_count').default(0),
+  
+  // NEW COLUMNS (This is what was missing)
   summary: text('summary'),
   publisher: text('publisher'),
-  authors: text('authors'), // e.g. "Scott Snyder, Greg Capullo"
+  authors: text('authors'), // "Writer Name, Artist Name"
   published_date: timestamp('published_date'),
-  // ---------------------------
-  
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
 });
 
+
+// Import Queue table - Quarantine files from unknown series
+export const importQueue = pgTable('import_queue', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  file_path: text('file_path').notNull().unique(),
+  file_size: integer('file_size').notNull(),
+  
+  // What the scanner thinks it is
+  suggested_series: text('suggested_series'),
+  suggested_title: text('suggested_title'),
+  suggested_number: text('suggested_number'),
+  
+  // Metadata for later
+  metadata_xml: text('metadata_xml'), // Store the raw XML JSON stringified
+  
+  created_at: timestamp('created_at').defaultNow(),
+});
 // Read Progress table - Track reading progress per book
 export const read_progress = pgTable('read_progress', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -191,22 +200,3 @@ export const readingHistory = pgTable('reading_history', {
   pk: primaryKey({ columns: [table.user_id, table.book_id] }),
 }));
 
-// Relations for file-based tables
-export const fileSeriesRelations = relations(fileSeries, ({ many }) => ({
-  books: many(books),
-}));
-
-export const booksRelations = relations(books, ({ one, many }) => ({
-  series: one(fileSeries, {
-    fields: [books.series_id],
-    references: [fileSeries.id],
-  }),
-  readingHistory: many(readingHistory),
-}));
-
-export const readingHistoryRelations = relations(readingHistory, ({ one }) => ({
-  book: one(books, {
-    fields: [readingHistory.book_id],
-    references: [books.id],
-  }),
-}));
