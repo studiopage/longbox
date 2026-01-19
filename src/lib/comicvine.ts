@@ -100,7 +100,12 @@ export async function getComicVineVolume(id: string) {
       const res = await fetch(url, { headers: { 'User-Agent': 'Vidiai-Longbox/1.0' } });
       if (!res.ok) throw new Error('CV API Error');
       const data = await res.json();
-      return CVVolumeSchema.parse(data.results);
+      // Handle if ComicVine returns an Array vs a Single Object
+      const result = Array.isArray(data.results) ? data.results[0] : data.results;
+      
+      if (!result) return null; // Safety check if array was empty
+      
+      return CVVolumeSchema.parse(result);
     } catch (error) {
       console.error('CV Volume Fetch Failed:', error);
       return null;
