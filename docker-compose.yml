@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  longbox-db:
+    container_name: longbox-db
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=longbox
+      - POSTGRES_PASSWORD=longbox_secret
+      - POSTGRES_DB=longbox
+    volumes:
+      - longbox_postgres_data:/var/lib/postgresql/data
+    networks:
+      - longbox-net
+
+  longbox-web:
+    # Ensure this matches where your Dockerfile lives (usually current directory)
+    build: . 
+    container_name: longbox-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # THE CRITICAL LINE: Maps Mac path (Variable) -> Container path (Internal)
+      - ${MEDIA_ROOT}:/comics:ro
+    environment:
+      - LIBRARY_ROOT=/comics
+      - DATABASE_URL=postgresql://longbox:longbox_secret@longbox-db:5432/longbox
+    depends_on:
+      - longbox-db
+    networks:
+      - longbox-net
+
+networks:
+  longbox-net:
+    driver: bridge
+
+volumes:
+  longbox_postgres_data:

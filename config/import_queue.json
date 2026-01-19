@@ -1,0 +1,26 @@
+[
+  {
+    "id": "7001a7b3-bdeb-4b68-8a01-6732380ae122",
+    "filePath": "0P3E7S6E7EWFR",
+    "localTitle": "Tomorrow's Ashes",
+    "localYear": null,
+    "remoteId": "75505",
+    "remoteTitle": "Tomorrow's Comics",
+    "remoteYear": null,
+    "score": 66.66666666666666,
+    "status": "pending",
+    "timestamp": 1768517053576
+  },
+  {
+    "id": "4cdbe98f-037b-48ac-a090-fb1d82e25d74",
+    "filePath": "0P3E7S6E7EWFW",
+    "localTitle": "Walk Among Us",
+    "localYear": null,
+    "remoteId": "158639",
+    "remoteTitle": "SPIs Among Us",
+    "remoteYear": null,
+    "score": 63.63636363636363,
+    "status": "pending",
+    "timestamp": 1768517056077
+  }
+]

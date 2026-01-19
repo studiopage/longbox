@@ -1,0 +1,27 @@
+# .cursorrules - Project Longbox
+
+## 1. TECH STACK (STRICT)
+- **Framework:** Next.js 14+ (App Router).
+- **Language:** TypeScript (Strict Mode). No 'any'.
+- **Database:** PostgreSQL (Local Docker Container).
+- **ORM:** Drizzle ORM.
+- **UI:** Tailwind CSS + shadcn/ui.
+- **Icons:** Lucide React.
+- **State:** Server Actions for mutations.
+
+## 2. ARCHITECTURAL PATTERNS
+- **Offline First:** Assume no internet access for core functions.
+- **Data Access:** ALL database queries must reside in '@/db/queries'. Never query DB directly in UI components.
+- **Mutations:** ALL write operations are Server Actions in '@/actions'.
+- **Validation:** Use 'zod' for all inputs and API responses.
+- **"Reality Outranks Signals":** The local database is a cache. Komga is the Source of Truth for ownership.
+
+## 3. DOMAIN LOGIC
+- **Series Identity:** Unique ID = Title + Start Year.
+- **The "Batman Problem":** Identity matching is fallible. Use 'library_mapping' table with nullable FKs.
+- **Request Lifecycle:** 'draft' -> 'requested' -> 'searching' -> 'fulfilled'.
+
+## 4. CODING STANDARDS
+- **Interfaces:** Always define interfaces for props.
+- **Error Handling:** Use 'return { success: false, error: string }' pattern for Server Actions.
+- **Imports:** Use absolute imports '@/components/...'.

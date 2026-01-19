@@ -1,0 +1,15 @@
+longbox/
+├── docker-compose.yml
+├── drizzle.config.ts
+├── src/
+│   ├── app/
+│   │   ├── (dashboard)/
+│   │   │   ├── discover/
+│   │   │   ├── library/
+│   │   │   ├── requests/
+│   │   │   └── series/
+│   ├── db/
+│   │   ├── schema.ts
+│   │   ├── index.ts
+│   └── types/
+│       └── longbox.ts
