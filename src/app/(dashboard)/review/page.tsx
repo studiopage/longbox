@@ -23,25 +23,25 @@ export default async function ReviewPage() {
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-            <h1 className="text-3xl font-black text-white">Review Queue</h1>
-            <p className="text-zinc-500">Found {queue.length} files belonging to unknown series.</p>
+            <h1 className="text-3xl font-black text-foreground">Review Queue</h1>
+            <p className="text-muted-foreground">Found {queue.length} files belonging to unknown series.</p>
         </div>
       </div>
 
       <div className="space-y-4">
         {queue.map((item) => (
-          <div key={item.id} className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg flex items-center justify-between group">
+          <div key={item.id} className="bg-card border border-border p-4 rounded flex items-center justify-between group">
             <div className="flex-1 min-w-0 pr-4">
                 <div className="flex items-center gap-2 mb-1">
-                    <span className="bg-blue-900/30 text-blue-400 text-xs font-bold px-2 py-0.5 rounded border border-blue-500/20">
+                    <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded border border-primary/20">
                         NEW SERIES DETECTED
                     </span>
-                    <span className="text-zinc-500 text-xs font-mono truncate">{item.file_path}</span>
+                    <span className="text-muted-foreground text-xs font-mono truncate">{item.file_path}</span>
                 </div>
-                <h3 className="text-lg font-bold text-white truncate">
+                <h3 className="text-lg font-bold text-foreground truncate">
                     {item.suggested_series || 'Unknown Series'}
                 </h3>
-                <p className="text-sm text-zinc-400">
+                <p className="text-sm text-muted-foreground">
                     Issue #{item.suggested_number || '?'} • {item.suggested_title || 'Untitled'}
                 </p>
             </div>
@@ -58,7 +58,7 @@ export default async function ReviewPage() {
         ))}
 
         {queue.length === 0 && (
-            <div className="text-center py-20 text-zinc-600">
+            <div className="text-center py-20 text-muted-foreground">
                 <p>All clean. No pending imports.</p>
             </div>
         )}

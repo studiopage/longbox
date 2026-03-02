@@ -38,8 +38,16 @@ docker-compose.yml
 coverage
 .nyc_output
 
+# Local database
+local.db
+
+# Docs and plans
+docs/
+
+# Claude
+.claude/
+
 # Misc
 *.log
 *.md
-README.md
 

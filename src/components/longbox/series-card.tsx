@@ -23,9 +23,9 @@ export function SeriesCard({ series }: SeriesCardProps) {
           <p className="text-sm text-muted-foreground">
             {series.publisher} • {series.year || series.start_year || '----'}
           </p>
-          {(series.cv_id || series.comicvine_id) && (
-            <p className="text-xs text-blue-500 mt-2 font-mono">
-              CV-ID: {series.cv_id || series.comicvine_id}
+          {(series.cv_id || series.cv_id) && (
+            <p className="text-xs text-primary mt-2 font-mono">
+              CV-ID: {series.cv_id || series.cv_id}
             </p>
           )}
         </CardContent>

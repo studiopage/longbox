@@ -1,3 +1,5 @@
+'use server';
+
 import { z } from 'zod';
 import { getSettings } from '@/actions/settings'; // Import the DB getter
 
@@ -38,7 +40,16 @@ export async function browseComicVine(params: BrowseParams) {
   let url = `${BASE_URL}/volumes/?api_key=${CV_API_KEY}&format=json&limit=${limit}&offset=${offset}`;
 
   const filterParts: string[] = [];
-  if (params.year && params.year !== 'all') filterParts.push(`start_year:${params.year}`);
+  if (params.year && params.year !== 'all') {
+    if (params.year.includes('-')) {
+      // Range like "2020-2029" — use pipe-separated years for ComicVine range filter
+      const [startYear, endYear] = params.year.split('-').map(Number);
+      const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
+      filterParts.push(`start_year:${years.join('|')}`);
+    } else {
+      filterParts.push(`start_year:${params.year}`);
+    }
+  }
   if (params.publisherId && params.publisherId !== 'all') filterParts.push(`publisher:${params.publisherId}`);
   
   if (filterParts.length > 0) {
@@ -91,20 +102,28 @@ export async function getFreshSeries() {
 // 4. GET SINGLE VOLUME (For the Details Page)
 export async function getComicVineVolume(id: string) {
     const CV_API_KEY = await getApiKey();
-    if (!CV_API_KEY) return null;
+    if (!CV_API_KEY) {
+      console.error('CV Volume Fetch Failed: No API key configured');
+      return null;
+    }
 
-    // Note: ComicVine IDs for volumes are typically '4050-ID'
-    const url = `${BASE_URL}/volume/4050-${id}/?api_key=${CV_API_KEY}&format=json`;
-  
+    // ComicVine volume IDs can come as just the number or as '4050-ID'
+    // Strip the prefix if already present to avoid duplication
+    const cleanId = id.replace(/^4050-/, '');
+    const url = `${BASE_URL}/volume/4050-${cleanId}/?api_key=${CV_API_KEY}&format=json`;
+
     try {
       const res = await fetch(url, { headers: { 'User-Agent': 'Vidiai-Longbox/1.0' } });
-      if (!res.ok) throw new Error('CV API Error');
+      if (!res.ok) {
+        console.error(`CV API Error: ${res.status} ${res.statusText} for volume ${cleanId}`);
+        return null;
+      }
       const data = await res.json();
       // Handle if ComicVine returns an Array vs a Single Object
       const result = Array.isArray(data.results) ? data.results[0] : data.results;
-      
+
       if (!result) return null; // Safety check if array was empty
-      
+
       return CVVolumeSchema.parse(result);
     } catch (error) {
       console.error('CV Volume Fetch Failed:', error);
@@ -117,15 +136,18 @@ export async function getComicVineIssues(volumeId: string) {
   const CV_API_KEY = await getApiKey();
   if (!CV_API_KEY) return [];
 
+  // Strip the 4050- prefix if present - the filter just needs the numeric ID
+  const cleanId = volumeId.replace(/^4050-/, '');
+
   // Fetch issues for a specific volume
-  const url = `${BASE_URL}/issues/?api_key=${CV_API_KEY}&format=json&filter=volume:${volumeId}&sort=cover_date:desc`;
+  const url = `${BASE_URL}/issues/?api_key=${CV_API_KEY}&format=json&filter=volume:${cleanId}&sort=cover_date:desc`;
 
   try {
       const res = await fetch(url, { headers: { 'User-Agent': 'Vidiai-Longbox/1.0' } });
       if (!res.ok) return [];
       const data = await res.json();
       // We will define a quick schema here or just return raw for now
-      return data.results;
+      return data.results || [];
   } catch (error) {
       return [];
   }

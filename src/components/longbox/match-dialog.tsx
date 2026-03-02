@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { searchSeries } from '@/actions/search';
+import { searchComicVineOnly } from '@/lib/search-service';
 import { linkSeriesToMapping } from '@/actions/match'; 
 import { Search, Link as LinkIcon, Loader2, ImageOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -19,7 +19,7 @@ export function MatchDialog({ mapping }: { mapping: any }) {
   async function handleSearch() {
     if (!query) return;
     setLoading(true);
-    const data = await searchSeries(query);
+    const data = await searchComicVineOnly(query);
     setResults(data);
     setLoading(false);
   }
@@ -41,7 +41,7 @@ export function MatchDialog({ mapping }: { mapping: any }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-6 text-yellow-500 hover:text-yellow-400">
+        <Button variant="ghost" size="sm" className="h-6 text-primary hover:text-primary/80">
           <LinkIcon className="w-3 h-3 mr-1" /> Match
         </Button>
       </DialogTrigger>
@@ -66,7 +66,7 @@ export function MatchDialog({ mapping }: { mapping: any }) {
                 <div key={item.id} className="flex gap-4 p-3 border rounded hover:bg-accent/50 cursor-pointer" onClick={() => handleMatch(item)}>
                     <div className="w-12 h-16 bg-muted shrink-0 flex items-center justify-center">
                         {item.image?.medium_url ? (
-                            <img src={item.image.medium_url} alt="" className="w-full h-full object-cover rounded-sm" />
+                            <img src={item.image.medium_url} alt="" className="w-full h-full object-cover rounded" />
                         ) : (
                             <ImageOff className="w-6 h-6 opacity-20" />
                         )}

@@ -70,16 +70,16 @@ export function SmartSearch() {
 
   return (
     <div className="w-full relative group">
-      <div 
+      <div
         onClick={handleContainerClick}
-        className="flex items-center w-full rounded-lg border shadow-sm bg-muted/50 transition-all duration-200 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/20 cursor-text px-3 h-12 relative"
+        className="flex items-center w-full rounded border border-border bg-secondary transition-all duration-200 focus-within:bg-accent focus-within:border-primary/30 cursor-text px-4 h-11 relative"
       >
-        <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0 opacity-50" />
+        <Search className="h-4 w-4 text-muted-foreground mr-3 shrink-0" />
 
         {/* CRITICAL FIX: shouldFilter={false} prevents cmdk from hiding your footer */}
-        <Command 
-            shouldFilter={false} 
-            className="bg-transparent border-none shadow-none h-full overflow-visible"
+        <Command
+            shouldFilter={false}
+            className="!bg-transparent border-none shadow-none h-full overflow-visible [&>*]:!bg-transparent"
         >
             <div className="flex items-center w-full h-full relative">
                 <CommandInput 
@@ -102,7 +102,7 @@ export function SmartSearch() {
             </div>
 
             {open && query.length > 0 && (
-                <div className="absolute top-[calc(100%+6px)] left-0 w-full z-50 rounded-md border bg-popover text-popover-foreground shadow-lg outline-none animate-in fade-in-0 slide-in-from-top-1">
+                <div className="absolute top-[calc(100%+6px)] left-0 w-full z-50 rounded border bg-popover text-popover-foreground shadow-lg outline-none animate-in fade-in-0 slide-in-from-top-1">
                     <CommandList className="max-h-[500px] overflow-y-auto">
                         
                         {loading && (
@@ -149,7 +149,7 @@ export function SmartSearch() {
                                         onSelect={() => handleSelect(item.url)}
                                         className="cursor-pointer"
                                         >
-                                        <Globe className="mr-2 h-4 w-4 text-blue-500" />
+                                        <Globe className="mr-2 h-4 w-4 text-primary" />
                                         <div className="flex flex-col">
                                             <span className="font-medium">{item.title}</span>
                                             <span className="text-xs text-muted-foreground">{item.publisher} • {item.year}</span>

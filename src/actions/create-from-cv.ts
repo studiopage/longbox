@@ -21,12 +21,12 @@ export async function createSeriesFromCV(data: CreateFromCVPayload) {
     
     await db.insert(series).values({
       id: newSeriesId,
-      title: data.title,
-      start_year: data.year,
+      name: data.title,
+      year: data.year,
       publisher: data.publisher,
       description: data.description,
       status: 'ongoing', // Default
-      comicvine_id: data.cvId,
+      cv_id: parseInt(data.cvId),
       thumbnail_url: data.image,
     });
 

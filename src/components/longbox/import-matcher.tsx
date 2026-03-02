@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Search, Loader2 } from 'lucide-react';
-import { searchComicVineAction } from '@/actions/search-cv';
-import { importSeriesAction } from '@/actions/library';
+import { searchComicVineOnly } from '@/lib/search-service';
+import { importSeriesAction, matchExistingSeriesAction } from '@/actions/library';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -14,7 +14,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
-export function ImportMatcher({ term }: { term: string }) {
+interface ImportMatcherProps {
+  term: string;
+  seriesId?: string; // Existing series ID to update (for matching unmatched series)
+}
+
+export function ImportMatcher({ term, seriesId }: ImportMatcherProps) {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState<number | null>(null);
@@ -32,7 +37,7 @@ export function ImportMatcher({ term }: { term: string }) {
   const handleSearch = async () => {
     setLoading(true);
     try {
-      const res = await searchComicVineAction(term);
+      const res = await searchComicVineOnly(term);
       setResults(res || []);
     } catch (error) {
       console.error("Search failed:", error);
@@ -42,24 +47,31 @@ export function ImportMatcher({ term }: { term: string }) {
     }
   };
 
-  // 2. Import Selected
+  // 2. Import or Match Selected
   const handleImport = async (cvId: number) => {
     setImporting(cvId);
     try {
-      const res = await importSeriesAction(cvId.toString());
+      // If we have an existing series ID, update it instead of creating new
+      const res = seriesId
+        ? await matchExistingSeriesAction(seriesId, cvId.toString())
+        : await importSeriesAction(cvId.toString());
       setImporting(null);
-      
+
       if (res.success) {
-        // Feedback update
-        alert("Imported & Synced!");
+        const message = 'merged' in res && res.merged
+          ? "Books merged into existing series!"
+          : seriesId
+            ? "Matched & Synced!"
+            : "Imported & Synced!";
+        alert(message);
         setIsOpen(false);
-        router.refresh(); // Refresh page to update the list
+        router.refresh();
       } else {
-        alert(res.message || "Import failed");
+        alert(res.message || "Operation failed");
       }
     } catch (error) {
-      console.error("Import failed:", error);
-      alert("Import failed");
+      console.error("Operation failed:", error);
+      alert("Operation failed");
       setImporting(null);
     }
   };

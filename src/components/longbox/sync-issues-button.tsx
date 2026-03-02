@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { forceSyncIssuesAction } from '@/actions/requests';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export function SyncIssuesButton({ seriesId, cvId }: { seriesId: string, cvId: string | null }) {
   const [loading, setLoading] = useState(false);
@@ -24,14 +25,14 @@ export function SyncIssuesButton({ seriesId, cvId }: { seriesId: string, cvId: s
     try {
       const result = await forceSyncIssuesAction(seriesId, cvId);
       if (result.success) {
-        alert(`Synced ${result.count} issues!`);
+        toast.success(`Synced ${result.count} issues!`);
         router.refresh();
       } else {
-        alert(result.message || "Sync failed.");
+        toast.error(result.message || "Sync failed");
       }
     } catch (error) {
       console.error(error);
-      alert("Failed to sync issues.");
+      toast.error("Failed to sync issues");
     } finally {
       setLoading(false);
     }

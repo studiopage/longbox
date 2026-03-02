@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Loader2 } from 'lucide-react';
-import { searchSeries } from '@/actions/search';
+import { searchComicVineOnly } from '@/lib/search-service';
 import { Card, CardContent } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { ImageOff } from 'lucide-react';
@@ -18,7 +18,7 @@ export function DiscoverySearch() {
   async function handleSearch() {
     if (!query.trim()) return;
     setLoading(true);
-    const data = await searchSeries(query);
+    const data = await searchComicVineOnly(query);
     setResults(data);
     setLoading(false);
   }
@@ -46,7 +46,7 @@ export function DiscoverySearch() {
             <Card 
               key={series.id} 
               className="cursor-pointer hover:bg-accent/50 transition-colors group"
-              onClick={() => router.push(`/series/new?cvId=${series.id}`)} // We will build this route next
+              onClick={() => router.push(`/series/${series.id}`)}
             >
               <CardContent className="p-4 flex gap-4 items-start">
                  {/* Thumbnail */}

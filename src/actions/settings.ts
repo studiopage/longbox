@@ -39,13 +39,37 @@ export async function saveSettings(data: typeof systemSettings.$inferInsert) {
 // 3. TEST COMICVINE CONNECTION
 export async function testComicVineConnection(apiKey: string) {
   if (!apiKey) return { success: false, message: "No API Key provided" };
-  
+
   try {
     const res = await fetch(`https://comicvine.gamespot.com/api/types/?api_key=${apiKey}&format=json`, {
       headers: { 'User-Agent': 'Vidiai-Longbox/1.0' }
     });
-    
+
     if (res.ok) return { success: true, message: "Connected to ComicVine!" };
+    return { success: false, message: `Failed: ${res.statusText}` };
+  } catch (error) {
+    return { success: false, message: "Connection Error" };
+  }
+}
+
+// 4. TEST METRON CONNECTION
+export async function testMetronConnection(username: string, apiKey: string) {
+  if (!username || !apiKey) {
+    return { success: false, message: "Username and API Key required" };
+  }
+
+  try {
+    const auth = Buffer.from(`${username}:${apiKey}`).toString('base64');
+    const res = await fetch('https://metron.cloud/api/publisher/', {
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Accept': 'application/json',
+        'User-Agent': 'Longbox/1.0',
+      },
+    });
+
+    if (res.ok) return { success: true, message: "Connected to Metron!" };
+    if (res.status === 401) return { success: false, message: "Invalid credentials" };
     return { success: false, message: `Failed: ${res.statusText}` };
   } catch (error) {
     return { success: false, message: "Connection Error" };

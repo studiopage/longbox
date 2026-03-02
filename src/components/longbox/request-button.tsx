@@ -5,6 +5,7 @@ import { Download, Loader2, Check } from 'lucide-react';
 import { useState } from 'react';
 import { requestIssueAction } from '@/actions/requests';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export function RequestButton({ issueId, currentStatus }: { issueId: string, currentStatus: string }) {
   const [status, setStatus] = useState(currentStatus);
@@ -17,11 +18,14 @@ export function RequestButton({ issueId, currentStatus }: { issueId: string, cur
         const res = await requestIssueAction(issueId);
         if (res.success) {
             setStatus('wanted');
-            router.refresh(); // Refresh to show updated status
+            toast.success("Issue added to request queue");
+            router.refresh();
+        } else {
+            toast.error("Failed to request issue");
         }
     } catch(e) {
         console.error(e);
-        alert("Failed to request issue.");
+        toast.error("Failed to request issue");
     } finally {
         setLoading(false);
     }
@@ -30,14 +34,14 @@ export function RequestButton({ issueId, currentStatus }: { issueId: string, cur
   if (status === 'downloaded') {
     return (
       <Button size="sm" variant="ghost" disabled>
-        <Check className="w-4 h-4 text-green-500"/>
+        <Check className="w-4 h-4 text-primary/70"/>
       </Button>
     );
   }
   
   if (status === 'wanted') {
     return (
-        <Button variant="secondary" size="sm" disabled className="h-8 text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-500">
+        <Button variant="secondary" size="sm" disabled className="h-8 text-primary/50 bg-primary/10">
             <Loader2 className="w-3 h-3 mr-2 animate-spin" /> Queued
         </Button>
     );

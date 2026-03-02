@@ -22,7 +22,7 @@ export const parseFilename = (filename: string): ParsedMeta => {
     clean = clean.replace(yearMatch[0], '');
   }
 
-  // 4. Aggressive Noise Stripping (The "Kapowarr" Regex Pattern)
+  // 4. Aggressive Noise Stripping
   clean = clean
     .replace(/_/g, ' ')           // Underscores to spaces
     .replace(/\(Digital\)/gi, '') // Scene Tags

@@ -25,7 +25,6 @@ export default async function RequestsPage() {
     seriesTitle: series.name,
     seriesId: series.id,
     seriesThumb: series.thumbnail_url,
-    kapowarrRef: requests.kapowarr_reference
   })
   .from(requests)
   .innerJoin(issues, eq(requests.issue_id, issues.id))
@@ -87,14 +86,9 @@ export default async function RequestsPage() {
                                 <div className="text-xs text-muted-foreground truncate max-w-[200px]">{req.issueTitle}</div>
                             </TableCell>
                             <TableCell>
-                                <Badge variant={req.status === 'sent_to_kapowarr' ? 'secondary' : 'outline'}>
-                                    {req.status === 'sent_to_kapowarr' ? 'Processing' : req.status}
+                                <Badge variant={req.status === 'pending' ? 'secondary' : 'outline'}>
+                                    {req.status}
                                 </Badge>
-                                {req.kapowarrRef && (
-                                    <div className="text-[10px] text-muted-foreground mt-1 font-mono">
-                                        REF: {req.kapowarrRef}
-                                    </div>
-                                )}
                             </TableCell>
                             <TableCell className="text-muted-foreground text-sm">
                                 {req.createdAt ? formatDistanceToNow(new Date(req.createdAt), { addSuffix: true }) : '-'}

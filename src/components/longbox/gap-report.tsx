@@ -81,7 +81,7 @@ export async function GapReport() {
                         <div key={item.id} className="space-y-1">
                             <div className="flex justify-between text-xs font-medium">
                                 <span className="truncate max-w-[150px]">{item.name}</span>
-                                <span className={isComplete ? "text-green-500" : ""}>
+                                <span className={isComplete ? "text-primary" : ""}>
                                     {item.percentage}%
                                 </span>
                             </div>
@@ -90,7 +90,7 @@ export async function GapReport() {
                             <div className="relative w-full h-2 bg-muted rounded-full overflow-hidden">
                                 <div 
                                     className={`h-full transition-all ${
-                                        isComplete ? 'bg-green-500' : 'bg-primary'
+                                        isComplete ? 'bg-primary' : 'bg-primary'
                                     }`}
                                     style={{ width: `${item.percentage}%` }}
                                 />
@@ -99,7 +99,7 @@ export async function GapReport() {
                             <div className="flex justify-between items-center pt-1">
                                 <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                                     {isComplete ? (
-                                        <><CheckCircle2 className="w-3 h-3 text-green-500" /> Complete Run</>
+                                        <><CheckCircle2 className="w-3 h-3 text-primary" /> Complete Run</>
                                     ) : (
                                         `Missing ${item.total - item.tracked} issues`
                                     )}

@@ -125,7 +125,7 @@ export default async function ImportPage() {
                     {missingArray.map((item) => {
                         const displayTitle = item.metadata.title || item.name;
                         return (
-                            <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
+                            <div key={item.id} className="flex items-center justify-between p-4 border rounded bg-card hover:bg-accent/5 transition-colors">
                                 <div className="min-w-0">
                                     <h4 className="font-semibold truncate">{displayTitle}</h4>
                                     <div className="flex gap-2 text-xs text-muted-foreground mt-1">

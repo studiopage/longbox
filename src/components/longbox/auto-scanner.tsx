@@ -80,7 +80,7 @@ export function AutoScanner({ untracked }: { untracked: any[] }) {
   };
 
   return (
-    <div className="bg-card border rounded-xl p-6 space-y-4 shadow-sm">
+    <div className="bg-card border rounded p-6 space-y-4 shadow-sm">
         <div className="flex items-center justify-between">
             <div>
                 <h3 className="font-semibold text-lg">Auto-Match Engine</h3>
@@ -110,8 +110,8 @@ export function AutoScanner({ untracked }: { untracked: any[] }) {
 
         {/* RESULTS GRID */}
         <div className="grid grid-cols-3 gap-4">
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-green-500" />
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-primary/70" />
                 <div>
                     <div className="text-2xl font-bold">{stats.imported}</div>
                     <div className="text-xs text-muted-foreground">Imported</div>
@@ -124,8 +124,8 @@ export function AutoScanner({ untracked }: { untracked: any[] }) {
                     <div className="text-xs text-muted-foreground">Skipped</div>
                 </div>
             </div>
-             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 text-red-500" />
+             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
                 <div>
                     <div className="text-2xl font-bold">{stats.errors}</div>
                     <div className="text-xs text-muted-foreground">Errors (Retried)</div>
@@ -134,11 +134,11 @@ export function AutoScanner({ untracked }: { untracked: any[] }) {
         </div>
 
         {/* LIVE LOGS */}
-        <div className="bg-black/50 rounded-lg p-3 h-32 overflow-hidden font-mono text-xs text-muted-foreground space-y-1">
+        <div className="bg-secondary rounded-lg p-3 h-32 overflow-hidden font-mono text-xs text-muted-foreground space-y-1">
             {logs.map((log, i) => (
                 <div key={i} className={
-                    log.includes("IMPORTED") ? "text-green-400" : 
-                    log.includes("ERROR") ? "text-red-400" : ""
+                    log.includes("IMPORTED") ? "text-primary/70" :
+                    log.includes("ERROR") ? "text-destructive" : ""
                 }>
                     {log}
                 </div>

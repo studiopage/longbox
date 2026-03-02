@@ -1,197 +1,310 @@
 export const dynamic = 'force-dynamic';
 
-import { db } from '@/db';
-import { series, issues } from '@/db/schema';
-import { eq, asc } from 'drizzle-orm';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Calendar, HardDrive, CheckCircle2, DownloadCloud, Eye } from 'lucide-react';
+import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { redirect, notFound } from 'next/navigation';
-import { RequestButton } from '@/components/longbox/request-button';
+import { Button } from '@/components/ui/button';
+import {
+  ArrowLeft,
+  Calendar,
+  Library,
+  BookOpen,
+  Play,
+  CheckCircle2,
+  ImageOff,
+} from 'lucide-react';
+import { getSeriesPageData, type SeriesPageData } from '@/lib/data/series-page';
+import { FavoriteSeriesButton } from '@/components/longbox/favorite-series-button';
+import { SeriesOptionsMenu } from '@/components/longbox/series-options-menu';
+import { ShareButton } from '@/components/longbox/share-button';
+import { MarkAsReadButton } from '@/components/longbox/mark-as-read-button';
+import { IssueOptionsMenu } from '@/components/longbox/issue-options-menu';
 import { SyncIssuesButton } from '@/components/longbox/sync-issues-button';
-import { RequestAllButton } from '@/components/longbox/request-all-button';
+import { ImportButton } from '@/components/longbox/import-button';
 
-export default async function LocalSeriesPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SeriesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  
-  // Fetch series and issues using direct queries (more reliable than relational API)
-  const [seriesData] = await db.select({
-    id: series.id,
-    name: series.name,
-    publisher: series.publisher,
-    year: series.year,
-    description: series.description,
-    status: series.status,
-    thumbnail_url: series.thumbnail_url,
-    cv_id: series.cv_id,
-    created_at: series.created_at,
-    updated_at: series.updated_at,
-  }).from(series).where(eq(series.id, id)).limit(1);
-  
-  if (!seriesData) {
-    return <div className="p-10">Series not found in library.</div>;
-  }
+  const data = await getSeriesPageData(id);
 
-  // Fetch issues for this series
-  const issuesData = await db.select({
-    id: issues.id,
-    series_id: issues.series_id,
-    cv_id: issues.cv_id,
-    issue_number: issues.issue_number,
-    title: issues.title,
-    cover_date: issues.cover_date,
-    thumbnail_url: issues.thumbnail_url,
-    status: issues.status,
-    read: issues.read,
-    created_at: issues.created_at,
-  })
-    .from(issues)
-    .where(eq(issues.series_id, id))
-    .orderBy(asc(issues.cover_date));
+  if (!data) return notFound();
 
-  const localSeries = { ...seriesData, issues: issuesData };
+  const coverUrl = data.thumbnailUrl || (data.hasBooks ? `/api/cover/${data.books[0]?.id}` : null);
 
   return (
-    <div className="min-h-screen pb-20">
-      
-      {/* HERO SECTION (Same as Import Page, but using local data) */}
-      <div className="relative w-full h-[40vh] bg-muted overflow-hidden">
-        {localSeries.thumbnail_url && (
-            <div 
-                className="absolute inset-0 bg-cover bg-center blur-xl opacity-50 scale-110"
-                style={{ backgroundImage: `url(${localSeries.thumbnail_url})` }}
-            />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
-        
-        <div className="absolute bottom-0 left-0 p-8 flex gap-6 items-end max-w-5xl">
-             <div className="w-32 md:w-48 aspect-[2/3] rounded-lg overflow-hidden shadow-2xl border-2 border-background/20 hidden md:block">
-                {localSeries.thumbnail_url && <img src={localSeries.thumbnail_url} className="w-full h-full object-cover" />}
-             </div>
-
-             <div className="space-y-2 mb-2">
-                <Link href="/">
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-3 mb-2">
-                        <ArrowLeft className="w-4 h-4 mr-1" /> Back to Library
-                    </Button>
-                </Link>
-                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white shadow-black drop-shadow-md">
-                    {localSeries.name}
-                </h1>
-                <div className="flex items-center gap-3 text-white/80">
-                    <Badge className="bg-primary text-primary-foreground border-none">
-                        IN LIBRARY
-                    </Badge>
-                    <span className="font-bold">{localSeries.publisher}</span>
-                    <span className="flex items-center text-sm font-medium">
-                        <Calendar className="w-4 h-4 mr-1.5 opacity-70" /> {localSeries.year}
-                    </span>
-                    <span className="text-sm opacity-60">•</span>
-                    <span className="text-sm font-medium">{localSeries.issues?.length || 0} Issues</span>
-                </div>
-             </div>
+    <div className="p-8 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <Link href={data.context === 'discovery' ? '/discovery' : '/library'}>
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-3">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            {data.context === 'discovery' ? 'Back to Discovery' : 'Library'}
+          </Button>
+        </Link>
+        <div className="flex items-center gap-2">
+          <ActionButtons data={data} />
         </div>
       </div>
 
-      {/* ACTION BAR */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-16 z-20 px-8 py-3 flex items-center justify-between">
-         <div className="flex items-center gap-4">
-             <div className="text-sm text-muted-foreground flex items-center">
-                <HardDrive className="w-4 h-4 mr-2 text-green-500" />
-                Local Metadata Active
-             </div>
-         </div>
-         <div className="flex gap-2">
-            <SyncIssuesButton seriesId={localSeries.id} cvId={localSeries.comicvine_id} />
-         </div>
-      </div>
-
-      {/* CONTENT GRID */}
-      <main className="p-8 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-         
-         {/* Left: Issues List */}
-         <div className="md:col-span-2 space-y-6">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold">Issue Management</h3>
-                <span className="text-xs text-muted-foreground">
-                    {localSeries.issues?.filter((i: any) => i.status === 'downloaded').length || 0} / {localSeries.issues?.length || 0} Owned
-                </span>
+      {/* Series Info Header */}
+      <div className="flex gap-6 items-start">
+        {/* Cover */}
+        {coverUrl && (
+          <div className="hidden md:block w-40 flex-shrink-0">
+            <div className="aspect-[2/3] rounded overflow-hidden border border-border">
+              <img
+                src={coverUrl}
+                alt={data.name || 'Series cover'}
+                className="w-full h-full object-cover"
+              />
             </div>
+          </div>
+        )}
 
-            {localSeries.issues && localSeries.issues.length > 0 ? (
-              <div className="space-y-2">
-                {localSeries.issues.map((issue: any) => (
-                    <div key={issue.id} className="group flex items-center p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-                            {/* Status Indicator */}
-                            <div className="mr-4 flex flex-col items-center gap-1">
-                                {/* Download Status */}
-                                {issue.status === 'downloaded' ? (
-                                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                                ) : issue.status === 'wanted' ? (
-                                    <DownloadCloud className="w-5 h-5 text-yellow-500" />
-                                ) : (
-                                    <div className="w-5 h-5 rounded-full border-2 border-muted" />
-                                )}
+        {/* Title & Meta */}
+        <div className="flex-1 min-w-0 space-y-4">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-primary font-semibold uppercase tracking-wide">
+              {data.publisher || 'Unknown Publisher'}
+            </span>
+            {data.year && (
+              <>
+                <span className="text-muted-foreground">•</span>
+                <span className="text-muted-foreground flex items-center">
+                  <Calendar className="w-4 h-4 mr-1" /> {data.year}
+                </span>
+              </>
+            )}
+            <span className="text-muted-foreground">•</span>
+            <span className="text-muted-foreground">{data.totalIssueCount} Issues</span>
+          </div>
 
-                                {/* Read Status (Small Eye Icon) */}
-                                {issue.read && (
-                                    <div title="Read" className="bg-primary/10 text-primary rounded-full p-0.5">
-                                        <Eye className="w-3 h-3" />
-                                    </div>
-                                )}
-                            </div>
+          <h1 className="text-3xl font-black text-foreground tracking-tight">
+            {data.name}
+          </h1>
 
-                            <div className="w-10 h-14 bg-muted rounded overflow-hidden mr-4 shrink-0">
-                                {issue.thumbnail_url && <img src={issue.thumbnail_url} className="w-full h-full object-cover" />}
-                            </div>
-                            
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <h4 className="font-medium text-sm truncate">{issue.title}</h4>
-                                    <Badge variant="outline" className="text-[10px] h-5 px-1">
-                                        #{issue.issue_number}
-                                    </Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground">{issue.cover_date}</p>
-                            </div>
-
-                            {/* Individual Request Button */}
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                <RequestButton 
-                                    issueId={issue.id} 
-                                    currentStatus={issue.status || 'missing'} 
-                                />
-                            </div>
-                    </div>
-                ))}
-              </div>
+          {/* Stats / Status */}
+          <div className="flex items-center gap-6">
+            {data.isInLibrary ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <Library className="w-4 h-4 text-primary" />
+                  <span className="text-primary font-bold">{data.ownedCount}</span>
+                  <span className="text-muted-foreground text-sm">Collected</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-primary/70" />
+                  <span className="text-primary/70 font-bold">{data.readCount}</span>
+                  <span className="text-muted-foreground text-sm">Read</span>
+                </div>
+              </>
             ) : (
-              <div className="py-10 text-center text-muted-foreground bg-accent/10 rounded-lg border border-dashed">
-                <p>No issues found. Click &quot;Sync Metadata&quot; to fetch issues from ComicVine.</p>
+              <div className="flex items-center gap-2">
+                <Library className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  This series is <strong className="text-foreground">not in your library</strong>
+                </span>
               </div>
             )}
-         </div>
+          </div>
 
-         {/* Right: Series Actions */}
-         <div className="space-y-6">
-            <div className="p-6 rounded-lg border bg-muted/20 space-y-4">
-                <h4 className="font-bold text-sm">Acquisition Control</h4>
-                <p className="text-xs text-muted-foreground">
-                    Requesting issues will add them to the Kapowarr download queue.
-                </p>
-                <RequestAllButton seriesId={localSeries.id} />
+          {/* Synopsis */}
+          {data.description && (
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-2xl line-clamp-3">
+              {data.description}
+            </p>
+          )}
+
+          {/* Primary CTA */}
+          {data.hasBooks && data.books.length > 0 && (
+            <Link href={`/read/${data.books[0].id}`}>
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
+                <Play className="w-4 h-4 mr-2 fill-current" />
+                Start Reading
+              </Button>
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* CONTENT */}
+      {data.hasBooks ? (
+        <OwnedBooksGrid data={data} />
+      ) : (
+        <IssueGrid data={data} />
+      )}
+    </div>
+  );
+}
+
+// ── Action Buttons (context-dependent) ─────────────────────
+
+function ActionButtons({ data }: { data: SeriesPageData }) {
+  if (data.context === 'library') {
+    return (
+      <>
+        <FavoriteSeriesButton seriesId={data.localSeriesId!} initialFavorited={data.isFavorited} />
+        <ShareButton title={data.name} />
+        <SeriesOptionsMenu seriesId={data.localSeriesId!} />
+      </>
+    );
+  }
+
+  if (data.context === 'managed') {
+    return (
+      <>
+        <SyncIssuesButton seriesId={data.localSeriesId!} cvId={data.cvId?.toString() || null} />
+        <FavoriteSeriesButton seriesId={data.localSeriesId!} initialFavorited={data.isFavorited} />
+        <SeriesOptionsMenu seriesId={data.localSeriesId!} />
+      </>
+    );
+  }
+
+  // discovery
+  if (data.cvId) {
+    return <ImportButton cvId={data.cvId.toString()} />;
+  }
+
+  return null;
+}
+
+// ── Owned Books Grid (library context) ─────────────────────
+
+function OwnedBooksGrid({ data }: { data: SeriesPageData }) {
+  if (data.books.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+        <h3 className="text-lg font-medium text-muted-foreground">No issues in your library</h3>
+        <p className="text-muted-foreground mt-1">Scan or import comics to see them here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+      {data.books.map((book) => (
+        <div key={book.id} className="group">
+          <Link href={`/series/${data.id}/issue/${book.id}`}>
+            <div className="relative aspect-[2/3] rounded overflow-hidden bg-muted mb-3 border border-border group-hover:border-primary/50 transition-all">
+              <img
+                src={`/api/cover/${book.id}`}
+                alt={book.title || `Issue #${book.number}`}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                loading="lazy"
+              />
+
+              {/* Hover Overlay */}
+              <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-foreground/20 flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 text-foreground" />
+                </div>
+              </div>
+
+              {/* Issue Number Badge */}
+              <div className="absolute top-2 left-2 bg-background/85 rounded px-2 py-0.5 text-xs font-bold text-foreground">
+                #{book.number}
+              </div>
+
+              {/* Read Badge */}
+              {book.isCompleted && (
+                <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                  <CheckCircle2 className="w-4 h-4 text-primary-foreground" />
+                </div>
+              )}
             </div>
-            
-            <div className="p-6 rounded-lg border bg-card">
-                <h3 className="font-bold text-sm mb-2">Synopsis</h3>
-                <div 
-                    className="text-xs text-muted-foreground leading-relaxed prose prose-invert max-w-none line-clamp-[10]"
-                    dangerouslySetInnerHTML={{ __html: localSeries.description || 'No description available.' }} 
-                />
+          </Link>
+
+          {/* Quick Action Icons */}
+          <div className="flex items-center gap-1 mb-2">
+            <MarkAsReadButton
+              bookId={book.id}
+              initialCompleted={book.isCompleted}
+              totalPages={book.pageCount || 1}
+            />
+            <IssueOptionsMenu
+              bookId={book.id}
+              seriesId={data.id}
+              isCompleted={book.isCompleted}
+              totalPages={book.pageCount || 1}
+            />
+          </div>
+
+          {/* Issue Info */}
+          <div>
+            <p className="text-xs text-primary font-medium uppercase tracking-wide">
+              {data.publisher || 'Unknown'}
+            </p>
+            <h3 className="text-sm font-semibold text-foreground truncate">
+              {data.name} #{book.number}
+            </h3>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Issue Grid (managed / discovery context) ────────────────
+
+function IssueGrid({ data }: { data: SeriesPageData }) {
+  if (data.issues.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+        <h3 className="text-lg font-medium text-muted-foreground">No issues found</h3>
+        <p className="text-muted-foreground mt-1">
+          {data.context === 'managed'
+            ? 'Click "Sync Metadata" to fetch issues from ComicVine.'
+            : 'No issues available for this series.'}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+      {data.issues.map((issue) => (
+        <div key={issue.id} className="group">
+          <div className="relative aspect-[2/3] rounded overflow-hidden bg-muted mb-3 border border-border group-hover:border-primary/50 transition-all">
+            {issue.thumbnailUrl ? (
+              <img
+                src={issue.thumbnailUrl}
+                alt={issue.title || `Issue #${issue.issueNumber}`}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                loading="lazy"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <ImageOff className="w-8 h-8 text-muted-foreground" />
+              </div>
+            )}
+
+            {/* Issue Number Badge */}
+            <div className="absolute top-2 left-2 bg-background/85 rounded px-2 py-0.5 text-xs font-bold text-foreground border border-border">
+              #{issue.issueNumber}
             </div>
-         </div>
-      </main>
+
+            {/* Read Badge */}
+            {issue.isRead && (
+              <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4 text-primary-foreground" />
+              </div>
+            )}
+          </div>
+
+          {/* Issue Info */}
+          <div>
+            <p className="text-xs text-primary font-medium uppercase tracking-wide">
+              {data.publisher || 'Unknown'}
+            </p>
+            <h3 className="text-sm font-semibold text-foreground truncate">
+              {data.name} #{issue.issueNumber}
+            </h3>
+            {issue.coverDate && (
+              <p className="text-xs text-muted-foreground mt-0.5">{issue.coverDate}</p>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

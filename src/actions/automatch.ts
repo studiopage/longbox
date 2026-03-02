@@ -1,7 +1,7 @@
 'use server'
 
 import { v4 as uuidv4 } from 'uuid';
-import { searchComicVineAction } from '@/actions/search-cv';
+import { searchComicVineOnly } from '@/lib/search-service';
 import { importSeriesAction } from '@/actions/library';
 import { parseFilename } from '@/utils/parser';
 import { QueueManager } from '@/utils/queue';
@@ -11,22 +11,22 @@ const AUTO_IMPORT_THRESHOLD = 0.98; // 98% = Trust Blindly
 const QUEUE_THRESHOLD = 0.60;       // 60% = Ask Human
 
 
-export async function tryAutoMatchAction(komgaSeries: any) {
+export async function tryAutoMatchAction(localSeries: any) {
   const queue = new QueueManager();
-  
+
   // 1. Clean the Input using parser
-  const folderName = komgaSeries.metadata.title || komgaSeries.name || '';
+  const folderName = localSeries.metadata?.title || localSeries.name || '';
   const { cleanTitle, year: parsedYear } = parseFilename(folderName);
-  
+
   // Use parsed year, fallback to releaseDate
-  const year = parsedYear 
+  const year = parsedYear
     ? parseInt(parsedYear, 10)
-    : (komgaSeries.metadata.releaseDate 
-        ? new Date(komgaSeries.metadata.releaseDate).getFullYear() 
+    : (localSeries.metadata?.releaseDate
+        ? new Date(localSeries.metadata.releaseDate).getFullYear()
         : null);
   
   // 2. Search Remote (using cleanTitle improves API results significantly)
-  const candidates = await searchComicVineAction(cleanTitle);
+  const candidates = await searchComicVineOnly(cleanTitle);
   if (!candidates || candidates.length === 0) {
     return { success: false, reason: "No results found" };
   }
@@ -66,7 +66,7 @@ export async function tryAutoMatchAction(komgaSeries: any) {
     
     queue.add({
       id: uuidv4(),
-      filePath: komgaSeries.id, // Using Komga ID as file path identifier
+      filePath: localSeries.id,
       localTitle: cleanTitle,
       localYear: parsedYear,
       remoteId: bestMatch.id.toString(),
