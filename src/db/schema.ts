@@ -315,16 +315,6 @@ export const readProgressRelations = relations(read_progress, ({ one }) => ({
   }),
 }));
 
-// Reading History table - Track user reading progress
-export const readingHistory = pgTable('reading_history', {
-  user_id: uuid('user_id').notNull(), // References auth.users(id) - handled by RLS
-  book_id: uuid('book_id').notNull().references(() => books.id, { onDelete: 'cascade' }),
-  page: integer('page').default(1),
-  completed: boolean('completed').default(false),
-  read_date: timestamp('read_date', { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.user_id, table.book_id] }),
-}));
 
 // Favorite Characters table - Track user's favorite superhero characters
 export const favoriteCharacters = pgTable('favorite_characters', {
