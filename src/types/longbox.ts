@@ -18,12 +18,20 @@ export interface Series {
   comicvine_id?: string | null; // Alias for cv_id
 }
 
-// The "Request" (User Action)
+// The "Request" (Unified wishlist/download queue)
 export interface Request {
-  id: string; // UUID
-  series_id: string;
+  id: string;
+  userId: string | null;
+  seriesId: string | null;
+  issueId: string | null;
+  title: string;
+  issueNumber: string | null;
+  publisher: string | null;
+  cvId: number | null;
   edition: EditionType;
-  state: RequestState;
-  created_at: Date;
-  updated_at: Date;
+  status: RequestState;
+  webhookSent: boolean;
+  requestedAt: Date | null;
+  fulfilledAt: Date | null;
+  createdAt: Date | null;
 }

@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/db';
-import { series, request } from '@/db/schema';
+import { series, requests } from '@/db/schema';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -31,11 +31,13 @@ export async function createSeriesFromCV(data: CreateFromCVPayload) {
     });
 
     // 2. Create a request for it
-    await db.insert(request).values({
-      id: uuidv4(),
+    await db.insert(requests).values({
       series_id: newSeriesId,
+      title: data.title,
+      publisher: data.publisher,
+      cv_id: parseInt(data.cvId),
       edition: 'tpb',
-      state: 'requested',
+      status: 'requested',
     });
 
     revalidatePath('/');

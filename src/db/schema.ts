@@ -122,14 +122,22 @@ export const series = pgTable('series', {
   updated_at: timestamp('updated_at').defaultNow(),
 });
 
-// Request table - The "Request" (User Action)
-export const request = pgTable('request', {
+// Requests table - Unified wishlist/download queue
+export const requests = pgTable('requests', {
   id: uuid('id').primaryKey().defaultRandom(),
-  series_id: uuid('series_id').notNull().references(() => series.id, { onDelete: 'cascade' }),
-  edition: editionTypeEnum('edition').notNull(),
-  state: requestStateEnum('state').notNull(),
-  created_at: timestamp('created_at').notNull().defaultNow(),
-  updated_at: timestamp('updated_at').notNull().defaultNow(),
+  user_id: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  series_id: uuid('series_id').references(() => series.id, { onDelete: 'cascade' }),
+  issue_id: uuid('issue_id').references(() => issues.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  issue_number: text('issue_number'),
+  publisher: text('publisher'),
+  cv_id: integer('cv_id'),
+  edition: editionTypeEnum('edition').default('issue'),
+  status: requestStateEnum('status').default('draft'),
+  webhook_sent: boolean('webhook_sent').default(false),
+  requested_at: timestamp('requested_at').defaultNow(),
+  fulfilled_at: timestamp('fulfilled_at'),
+  created_at: timestamp('created_at').defaultNow(),
 });
 
 // Series Match Candidates - Tracks potential series matches from scanner
@@ -161,16 +169,15 @@ export const issues = pgTable('issues', {
 // Relations
 export const seriesRelations = relations(series, ({ many }) => ({
   books: many(books),
-  requests: many(request),
+  requests: many(requests),
   matchCandidates: many(seriesMatchCandidates),
   issues: many(issues),
 }));
 
-export const requestRelations = relations(request, ({ one }) => ({
-  series: one(series, {
-    fields: [request.series_id],
-    references: [series.id],
-  }),
+export const requestsRelations = relations(requests, ({ one }) => ({
+  user: one(users, { fields: [requests.user_id], references: [users.id] }),
+  series: one(series, { fields: [requests.series_id], references: [series.id] }),
+  issue: one(issues, { fields: [requests.issue_id], references: [issues.id] }),
 }));
 
 export const seriesMatchCandidatesRelations = relations(seriesMatchCandidates, ({ one }) => ({
@@ -188,23 +195,6 @@ export const issuesRelations = relations(issues, ({ one, many }) => ({
   requests: many(requests),
 }));
 
-// Requests table - Download queue for wanted issues
-export const requests = pgTable('requests', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  issue_id: uuid('issue_id').references(() => issues.id, { onDelete: 'cascade' }).notNull(),
-  series_id: uuid('series_id').references(() => series.id, { onDelete: 'cascade' }).notNull(),
-
-  status: varchar('status', { length: 50 }).default('pending'), // 'pending', 'searching', 'fulfilled', 'failed'
-
-  created_at: timestamp('created_at').defaultNow(),
-  updated_at: timestamp('updated_at').defaultNow(),
-});
-
-// RELATIONS
-export const requestsRelations = relations(requests, ({ one }) => ({
-  issue: one(issues, { fields: [requests.issue_id], references: [issues.id] }),
-  series: one(series, { fields: [requests.series_id], references: [series.id] }),
-}));
 
 // System Settings table - Singleton configuration store
 export const systemSettings = pgTable('system_settings', {

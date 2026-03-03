@@ -66,6 +66,12 @@ export async function requestIssueAction(issueId: string) {
     return { success: false, message: "Issue not found" };
   }
 
+  // Get series name for the title
+  const [ser] = await db.select({ name: series.name, publisher: series.publisher })
+    .from(series)
+    .where(eq(series.id, issue.series_id))
+    .limit(1);
+
   // Update status to 'wanted'
   await db.update(issues)
     .set({ status: 'wanted' })
@@ -75,7 +81,11 @@ export async function requestIssueAction(issueId: string) {
   await db.insert(requests).values({
     issue_id: issueId,
     series_id: issue.series_id,
-    status: 'pending'
+    title: ser?.name || 'Unknown',
+    issue_number: issue.issue_number,
+    publisher: ser?.publisher || null,
+    cv_id: issue.cv_id || null,
+    status: 'requested',
   });
 
   revalidatePath(`/series/${issue.series_id}`);
@@ -97,10 +107,20 @@ export async function requestAllMissingAction(seriesId: string) {
     return { success: false, message: "No missing issues to request." };
   }
 
+  // Get series name for the title
+  const [ser] = await db.select({ name: series.name, publisher: series.publisher })
+    .from(series)
+    .where(eq(series.id, seriesId))
+    .limit(1);
+
   const requestRows = missingIssues.map(issue => ({
     issue_id: issue.id,
     series_id: seriesId,
-    status: 'pending'
+    title: ser?.name || 'Unknown',
+    issue_number: issue.issue_number,
+    publisher: ser?.publisher || null,
+    cv_id: issue.cv_id || null,
+    status: 'requested' as const,
   }));
 
   const issueIds = missingIssues.map(i => i.id);
@@ -129,11 +149,15 @@ export async function deleteRequestAction(requestId: string) {
 
   await db.delete(requests).where(eq(requests.id, requestId));
 
-  await db.update(issues)
-    .set({ status: 'missing' })
-    .where(eq(issues.id, req.issue_id));
+  if (req.issue_id) {
+    await db.update(issues)
+      .set({ status: 'missing' })
+      .where(eq(issues.id, req.issue_id));
+  }
 
   revalidatePath('/requests');
-  revalidatePath(`/series/${req.series_id}`);
+  if (req.series_id) {
+    revalidatePath(`/series/${req.series_id}`);
+  }
   return { success: true };
 }

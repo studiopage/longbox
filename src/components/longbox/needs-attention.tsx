@@ -33,7 +33,7 @@ export async function NeedsAttention() {
       // Active downloads (pending requests)
       db.select({ count: sql<number>`count(*)`.mapWith(Number) })
         .from(requests)
-        .where(eq(requests.status, 'pending')),
+        .where(eq(requests.status, 'requested')),
     ]);
 
     const reviewQueue = reviewQueueResult.status === 'fulfilled' ? reviewQueueResult.value[0]?.count || 0 : 0;

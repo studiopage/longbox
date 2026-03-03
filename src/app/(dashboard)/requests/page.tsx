@@ -19,6 +19,8 @@ export default async function RequestsPage() {
   const queue = await db.select({
     id: requests.id,
     status: requests.status,
+    title: requests.title,
+    requestIssueNumber: requests.issue_number,
     createdAt: requests.created_at,
     issueTitle: issues.title,
     issueNumber: issues.issue_number,
@@ -27,8 +29,8 @@ export default async function RequestsPage() {
     seriesThumb: series.thumbnail_url,
   })
   .from(requests)
-  .innerJoin(issues, eq(requests.issue_id, issues.id))
-  .innerJoin(series, eq(requests.series_id, series.id))
+  .leftJoin(issues, eq(requests.issue_id, issues.id))
+  .leftJoin(series, eq(requests.series_id, series.id))
   .orderBy(desc(requests.created_at));
 
   return (
@@ -76,17 +78,21 @@ export default async function RequestsPage() {
                                     <div className="w-8 h-12 bg-muted rounded overflow-hidden shrink-0">
                                         {req.seriesThumb && <img src={req.seriesThumb} className="w-full h-full object-cover"/>}
                                     </div>
-                                    <Link href={`/series/${req.seriesId}`} className="font-medium hover:underline">
-                                        {req.seriesTitle}
-                                    </Link>
+                                    {req.seriesId ? (
+                                      <Link href={`/series/${req.seriesId}`} className="font-medium hover:underline">
+                                        {req.seriesTitle || req.title}
+                                      </Link>
+                                    ) : (
+                                      <span className="font-medium">{req.title}</span>
+                                    )}
                                 </div>
                             </TableCell>
                             <TableCell>
-                                <span className="text-sm">#{req.issueNumber}</span>
-                                <div className="text-xs text-muted-foreground truncate max-w-[200px]">{req.issueTitle}</div>
+                                <span className="text-sm">{req.issueNumber || req.requestIssueNumber ? `#${req.issueNumber || req.requestIssueNumber}` : '-'}</span>
+                                {req.issueTitle && <div className="text-xs text-muted-foreground truncate max-w-[200px]">{req.issueTitle}</div>}
                             </TableCell>
                             <TableCell>
-                                <Badge variant={req.status === 'pending' ? 'secondary' : 'outline'}>
+                                <Badge variant={req.status === 'requested' ? 'secondary' : 'outline'}>
                                     {req.status}
                                 </Badge>
                             </TableCell>

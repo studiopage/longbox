@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/db';
-import { series, request } from '@/db/schema';
+import { series, requests } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -40,11 +40,13 @@ export async function importAndRequestSeries(formData: FormData) {
     }
 
     // 3. Create the Request
-    await db.insert(request).values({
-      id: uuidv4(),
+    await db.insert(requests).values({
       series_id: seriesId,
-      edition: 'tpb', // Default preference
-      state: 'requested',
+      title: title,
+      publisher: publisher,
+      cv_id: parseInt(cvId),
+      edition: 'tpb',
+      status: 'requested',
     });
 
   } catch (error) {

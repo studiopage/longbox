@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { series, request, seriesMatchCandidates } from '@/db/schema';
+import { series, requests, seriesMatchCandidates } from '@/db/schema';
 import { count, eq, desc } from 'drizzle-orm';
 import { unstable_noStore as noStore } from 'next/cache';
 
@@ -15,7 +15,7 @@ export async function getDashboardStats() {
     recentMatches
   ] = await Promise.all([
     db.select({ count: count() }).from(series),
-    db.select({ count: count() }).from(request),
+    db.select({ count: count() }).from(requests),
     db.select({ count: count() }).from(seriesMatchCandidates).where(eq(seriesMatchCandidates.is_manually_verified, true)),
     db.select({ count: count() }).from(seriesMatchCandidates),
     

@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { series, request, seriesMatchCandidates } from '@/db/schema';
+import { series, requests, seriesMatchCandidates } from '@/db/schema';
 import { desc, eq } from 'drizzle-orm';
 import { unstable_noStore as noStore } from 'next/cache';
 
@@ -25,11 +25,11 @@ export async function getSeriesDetails(id: string) {
   
   const result = await db.select({
     series: series,
-    request: request,
+    request: requests,
     local: seriesMatchCandidates, // NEW: Fetch the local mapping
   })
   .from(series)
-  .leftJoin(request, eq(request.series_id, series.id))
+  .leftJoin(requests, eq(requests.series_id, series.id))
   .leftJoin(seriesMatchCandidates, eq(seriesMatchCandidates.series_id, series.id)) // NEW: Join
   .where(eq(series.id, id))
   .limit(1);
