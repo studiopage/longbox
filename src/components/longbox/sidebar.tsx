@@ -11,8 +11,10 @@ import {
   Library,
   BookOpen,
   Users,
+  Layers,
 } from 'lucide-react';
 import { UserMenu } from './user-menu';
+import { PinnedCollectionsSidebar } from './pinned-collections-sidebar';
 
 const ROUTES: Array<{
   label: string;
@@ -53,6 +55,13 @@ const ROUTES: Array<{
     label: 'Library',
     icon: Library,
     href: '/library',
+    matchExact: false,
+    disabled: false
+  },
+  {
+    label: 'Collections',
+    icon: Layers,
+    href: '/collections',
     matchExact: false,
     disabled: false
   },
@@ -106,6 +115,9 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* PINNED COLLECTIONS */}
+      <PinnedCollectionsSidebar />
 
       {/* USER MENU */}
       <div className="p-3 border-t border-sidebar-border">

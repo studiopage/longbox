@@ -11,10 +11,11 @@ import {
   Settings,
   Library,
   BookOpen,
-  CheckCircle2,
+  Layers,
   Menu,
   X
 } from 'lucide-react';
+import { PinnedCollectionsSidebar } from './pinned-collections-sidebar';
 
 const ROUTES: Array<{
   label: string;
@@ -48,6 +49,13 @@ const ROUTES: Array<{
     label: 'Library',
     icon: Library,
     href: '/library',
+    matchExact: false,
+    disabled: false
+  },
+  {
+    label: 'Collections',
+    icon: Layers,
+    href: '/collections',
     matchExact: false,
     disabled: false
   },
@@ -128,6 +136,9 @@ export function MobileSidebar() {
             );
           })}
         </nav>
+
+        {/* PINNED COLLECTIONS */}
+        <PinnedCollectionsSidebar />
 
         {/* FOOTER / STATUS */}
         <div className="p-4 border-t text-xs text-muted-foreground">

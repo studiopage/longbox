@@ -7,6 +7,9 @@ import { NeedsAttention } from '@/components/longbox/needs-attention';
 import { GapReport } from '@/components/longbox/gap-report';
 import { RecentlyAdded } from '@/components/longbox/recently-added';
 import { FavoriteCharacters } from '@/components/longbox/favorite-characters';
+import { PinnedCollectionsChips } from '@/components/longbox/pinned-collections-chips';
+import { seedStarterCollections } from '@/actions/collections';
+import { auth } from '@/lib/auth';
 
 function SectionSkeleton({ cols = 4 }: { cols?: number }) {
   return (
@@ -18,9 +21,20 @@ function SectionSkeleton({ cols = 4 }: { cols?: number }) {
   );
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Seed starter smart collections on first visit (idempotent)
+  const session = await auth();
+  if (session?.user?.id) {
+    await seedStarterCollections(session.user.id);
+  }
+
   return (
     <main className="p-6 md:p-8 space-y-8">
+      {/* Pinned Collection Chips - Mobile quick access */}
+      <Suspense fallback={<div className="h-10" />}>
+        <PinnedCollectionsChips />
+      </Suspense>
+
       {/* Continue Reading - Top priority for returning users */}
       <Suspense fallback={<SectionSkeleton cols={4} />}>
         <ContinueReading />

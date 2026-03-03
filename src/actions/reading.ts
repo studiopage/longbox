@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { updateReadingProgress, markAsCompleted, resetReadingProgress } from '@/lib/data/reading-progress';
 import { revalidatePath } from 'next/cache';
 import { countPagesInArchive } from '@/lib/metadata/parser';
+import { invalidateSmartCollections } from '@/lib/rules-engine';
 
 /**
  * Get book info including total pages for the reader
@@ -65,6 +66,7 @@ export async function saveReadingProgress(
 ) {
   try {
     await updateReadingProgress(bookId, page, totalPages);
+    invalidateSmartCollections();
     return { success: true };
   } catch (error) {
     console.error('Error saving reading progress:', error);
@@ -84,11 +86,13 @@ export async function toggleBookReadStatus(
     if (currentlyCompleted) {
       // Mark as unread - reset progress
       await resetReadingProgress(bookId);
+      invalidateSmartCollections();
       revalidatePath('/library');
       return { success: true, isCompleted: false };
     } else {
       // Mark as read - set to completed
       await markAsCompleted(bookId, totalPages);
+      invalidateSmartCollections();
       revalidatePath('/library');
       return { success: true, isCompleted: true };
     }
