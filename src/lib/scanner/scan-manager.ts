@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { db } from '@/db';
-import { books, series, importQueue } from '@/db/schema';
+import { books, series, triageQueue } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { extractComicInfo } from '@/lib/metadata/parser';
 import { scannerProgress } from './progress-emitter';
@@ -156,10 +156,10 @@ export async function runFullScan() {
 
       // Check if file is already in QUEUE
       const existingQueue = await db.select({
-        id: importQueue.id,
+        id: triageQueue.id,
       })
-        .from(importQueue)
-        .where(eq(importQueue.file_path, filePath))
+        .from(triageQueue)
+        .where(eq(triageQueue.file_path, filePath))
         .limit(1);
 
       if (existingQueue.length > 0) {
@@ -210,13 +210,14 @@ export async function runFullScan() {
         console.log(`[SCANNER] Added: ${fileName} (Issue #${issueNumber})`);
       } else {
         // ⚠️ UNKNOWN SERIES -> QUEUE IT
-        await db.insert(importQueue).values({
+        await db.insert(triageQueue).values({
           file_path: filePath,
           file_size: stats.size,
           suggested_series: seriesName,
           suggested_title: metadata?.title || fileName,
           suggested_number: String(issueNumber),
           metadata_xml: JSON.stringify(metadata || {}),
+          status: 'pending',
         });
         queued++;
         console.log(`[SCANNER] Queued: ${fileName} (New Series: ${seriesName}, Issue #${issueNumber})`);

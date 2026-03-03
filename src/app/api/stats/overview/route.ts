@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { series, books, importQueue, read_progress } from '@/db/schema';
+import { series, books, triageQueue, read_progress } from '@/db/schema';
 import { sql, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
@@ -23,7 +23,7 @@ export async function GET() {
       db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(books),
 
       // Review queue count
-      db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(importQueue),
+      db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(triageQueue),
 
       // Unmatched series count (series with books but no cv_id)
       db.select({ count: sql<number>`count(distinct ${series.id})`.mapWith(Number) })

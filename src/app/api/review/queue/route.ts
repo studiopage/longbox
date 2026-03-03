@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { importQueue } from '@/db/schema';
+import { triageQueue } from '@/db/schema';
 import { desc } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
@@ -9,17 +9,17 @@ export async function GET() {
   try {
     const queue = await db
       .select({
-        id: importQueue.id,
-        file_path: importQueue.file_path,
-        file_size: importQueue.file_size,
-        suggested_series: importQueue.suggested_series,
-        suggested_title: importQueue.suggested_title,
-        suggested_number: importQueue.suggested_number,
-        metadata_xml: importQueue.metadata_xml,
-        created_at: importQueue.created_at,
+        id: triageQueue.id,
+        file_path: triageQueue.file_path,
+        file_size: triageQueue.file_size,
+        suggested_series: triageQueue.suggested_series,
+        suggested_title: triageQueue.suggested_title,
+        suggested_number: triageQueue.suggested_number,
+        metadata_xml: triageQueue.metadata_xml,
+        created_at: triageQueue.created_at,
       })
-      .from(importQueue)
-      .orderBy(desc(importQueue.created_at));
+      .from(triageQueue)
+      .orderBy(desc(triageQueue.created_at));
 
     return NextResponse.json(queue);
   } catch (error) {

@@ -1,19 +1,19 @@
 'use server';
 
 import { db } from '@/db';
-import { books, series, importQueue } from '@/db/schema';
+import { books, series, triageQueue } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
 export async function rejectImport(id: string) {
-  await db.delete(importQueue).where(eq(importQueue.id, id));
+  await db.delete(triageQueue).where(eq(triageQueue.id, id));
   revalidatePath('/review');
 }
 
 export async function approveImport(id: string, seriesName: string, rawMetadata: string | null) {
   // 1. Get the queued item
-  const item = await db.query.importQueue.findFirst({
-    where: eq(importQueue.id, id)
+  const item = await db.query.triageQueue.findFirst({
+    where: eq(triageQueue.id, id)
   });
 
   if (!item) return { error: "Item not found" };
@@ -55,7 +55,7 @@ export async function approveImport(id: string, seriesName: string, rawMetadata:
   });
 
   // 5. Remove from Queue
-  await db.delete(importQueue).where(eq(importQueue.id, id));
+  await db.delete(triageQueue).where(eq(triageQueue.id, id));
 
   revalidatePath('/review');
   revalidatePath('/library');

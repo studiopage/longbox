@@ -1,10 +1,10 @@
 import { db } from '@/db';
-import { series, requests, seriesMatchCandidates } from '@/db/schema';
+import { series, requests } from '@/db/schema';
 import { desc, eq } from 'drizzle-orm';
 import { unstable_noStore as noStore } from 'next/cache';
 
 export async function getRecentSeries() {
-  noStore(); 
+  noStore();
   return await db.select({
     id: series.id,
     name: series.name,
@@ -19,18 +19,16 @@ export async function getRecentSeries() {
   }).from(series).orderBy(desc(series.year));
 }
 
-// NEW: Fetch details + Request Status
+// Fetch details + Request Status
 export async function getSeriesDetails(id: string) {
   noStore();
-  
+
   const result = await db.select({
     series: series,
     request: requests,
-    local: seriesMatchCandidates, // NEW: Fetch the local mapping
   })
   .from(series)
   .leftJoin(requests, eq(requests.series_id, series.id))
-  .leftJoin(seriesMatchCandidates, eq(seriesMatchCandidates.series_id, series.id)) // NEW: Join
   .where(eq(series.id, id))
   .limit(1);
 

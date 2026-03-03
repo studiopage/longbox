@@ -26,7 +26,6 @@ export function MatchDialog({ mapping }: { mapping: any }) {
 
   async function handleMatch(item: any) {
     await linkSeriesToMapping({
-        mappingId: mapping.id,
         cvId: item.id.toString(),
         title: item.name,
         year: parseInt(item.start_year || '0'),

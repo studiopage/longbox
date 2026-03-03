@@ -140,17 +140,6 @@ export const requests = pgTable('requests', {
   created_at: timestamp('created_at').defaultNow(),
 });
 
-// Series Match Candidates - Tracks potential series matches from scanner
-export const seriesMatchCandidates = pgTable('series_match_candidates', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  local_title: text('local_title').notNull(),
-  folder_path: text('folder_path'),
-  series_id: uuid('series_id').references(() => series.id, { onDelete: 'set null' }),
-  match_confidence: real('match_confidence').default(0),
-  is_manually_verified: boolean('is_manually_verified').default(false),
-  created_at: timestamp('created_at').notNull().defaultNow(),
-  updated_at: timestamp('updated_at').notNull().defaultNow(),
-});
 
 // Issues table - Individual Issues
 export const issues = pgTable('issues', {
@@ -170,7 +159,6 @@ export const issues = pgTable('issues', {
 export const seriesRelations = relations(series, ({ many }) => ({
   books: many(books),
   requests: many(requests),
-  matchCandidates: many(seriesMatchCandidates),
   issues: many(issues),
 }));
 
@@ -180,12 +168,6 @@ export const requestsRelations = relations(requests, ({ one }) => ({
   issue: one(issues, { fields: [requests.issue_id], references: [issues.id] }),
 }));
 
-export const seriesMatchCandidatesRelations = relations(seriesMatchCandidates, ({ one }) => ({
-  series: one(series, {
-    fields: [seriesMatchCandidates.series_id],
-    references: [series.id],
-  }),
-}));
 
 export const issuesRelations = relations(issues, ({ one, many }) => ({
   series: one(series, {
@@ -218,6 +200,20 @@ export const appSettings = pgTable('app_settings', {
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+// Scan Jobs table - Persists scan state across restarts
+export const scanJobs = pgTable('scan_jobs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  status: text('status').notNull().default('idle'), // idle | running | completed | failed
+  started_at: timestamp('started_at').defaultNow(),
+  completed_at: timestamp('completed_at'),
+  total_files: integer('total_files').default(0),
+  processed_files: integer('processed_files').default(0),
+  matched: integer('matched').default(0),
+  needs_review: integer('needs_review').default(0),
+  errors: integer('errors').default(0),
+  current_file: text('current_file'),
+});
+
 
 // Books table - The Physical Files
 export const books = pgTable('books', {
@@ -245,6 +241,7 @@ export const books = pgTable('books', {
   // Enrichment Data (from Metron/other sources)
   credits: jsonb('credits'), // [{creator: "Name", role: ["Writer"]}]
   story_arcs: jsonb('story_arcs'), // [{id: 1, name: "Arc Name"}]
+  match_flags: text('match_flags').array(), // ["low_confidence", "needs_metadata"]
 
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
@@ -262,20 +259,20 @@ export const booksRelations = relations(books, ({ one }) => ({
   }),
 }));
 
-// Import Queue table - Quarantine files from unknown series
-export const importQueue = pgTable('import_queue', {
+// Triage Queue table - Files awaiting manual series assignment
+export const triageQueue = pgTable('triage_queue', {
   id: uuid('id').defaultRandom().primaryKey(),
   file_path: text('file_path').notNull().unique(),
   file_size: integer('file_size').notNull(),
-  
-  // What the scanner thinks it is
   suggested_series: text('suggested_series'),
   suggested_title: text('suggested_title'),
   suggested_number: text('suggested_number'),
-  
-  // Metadata for later
-  metadata_xml: text('metadata_xml'), // Store the raw XML JSON stringified
-  
+  match_confidence: real('match_confidence').default(0),
+  matched_series_id: uuid('matched_series_id').references(() => series.id, { onDelete: 'set null' }),
+  signals: jsonb('signals'),
+  status: text('status').notNull().default('pending'), // pending | approved | rejected
+  scan_job_id: uuid('scan_job_id').references(() => scanJobs.id, { onDelete: 'set null' }),
+  metadata_xml: text('metadata_xml'),
   created_at: timestamp('created_at').defaultNow(),
 });
 // Read Progress table - Track reading progress per book per user

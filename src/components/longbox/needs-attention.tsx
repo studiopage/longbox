@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { importQueue, series, books, requests } from '@/db/schema';
+import { triageQueue, series, books, requests } from '@/db/schema';
 import { sql, eq, isNull } from 'drizzle-orm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, FileQuestion, Link2Off, Download, ArrowRight } from 'lucide-react';
@@ -22,7 +22,7 @@ export async function NeedsAttention() {
     // Parallel fetch all counts
     const [reviewQueueResult, unmatchedSeriesResult, activeDownloadsResult] = await Promise.allSettled([
       // Review queue count
-      db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(importQueue),
+      db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(triageQueue),
 
       // Unmatched series (series with books but no cv_id)
       db.select({ count: sql<number>`count(distinct ${series.id})`.mapWith(Number) })
