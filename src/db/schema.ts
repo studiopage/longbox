@@ -330,10 +330,17 @@ export const favoriteSeries = pgTable('favorite_series', {
 // Collections table - User-created collections/folders for organizing comics
 export const collections = pgTable('collections', {
   id: uuid('id').defaultRandom().primaryKey(),
-  user_id: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }), // Optional for backwards compat
+  user_id: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   description: text('description'),
-  cover_book_id: uuid('cover_book_id').references(() => books.id, { onDelete: 'set null' }), // Use a book's cover as collection cover
+  cover_book_id: uuid('cover_book_id').references(() => books.id, { onDelete: 'set null' }),
+
+  // Smart collection fields
+  smart_rules: jsonb('smart_rules'),        // null = manual collection
+  pinned: boolean('pinned').default(false),
+  icon: text('icon'),                        // Lucide icon name
+  sort_preference: text('sort_preference'),  // e.g. "title_asc", "date_added_desc"
+
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
 });
