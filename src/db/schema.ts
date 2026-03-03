@@ -132,13 +132,11 @@ export const request = pgTable('request', {
   updated_at: timestamp('updated_at').notNull().defaultNow(),
 });
 
-// Library Mapping table - Handles the "Batman Problem"
-// Links local scanned folders to Series via nullable foreign key
-export const libraryMapping = pgTable('library_mapping', {
+// Series Match Candidates - Tracks potential series matches from scanner
+export const seriesMatchCandidates = pgTable('series_match_candidates', {
   id: uuid('id').primaryKey().defaultRandom(),
-  komga_series_id: text('komga_series_id').notNull().unique(),
   local_title: text('local_title').notNull(),
-  komga_folder_path: text('komga_folder_path'), // Optional, for backward compatibility
+  folder_path: text('folder_path'),
   series_id: uuid('series_id').references(() => series.id, { onDelete: 'set null' }),
   match_confidence: real('match_confidence').default(0),
   is_manually_verified: boolean('is_manually_verified').default(false),
@@ -164,7 +162,7 @@ export const issues = pgTable('issues', {
 export const seriesRelations = relations(series, ({ many }) => ({
   books: many(books),
   requests: many(request),
-  libraryMappings: many(libraryMapping),
+  matchCandidates: many(seriesMatchCandidates),
   issues: many(issues),
 }));
 
@@ -175,9 +173,9 @@ export const requestRelations = relations(request, ({ one }) => ({
   }),
 }));
 
-export const libraryMappingRelations = relations(libraryMapping, ({ one }) => ({
+export const seriesMatchCandidatesRelations = relations(seriesMatchCandidates, ({ one }) => ({
   series: one(series, {
-    fields: [libraryMapping.series_id],
+    fields: [seriesMatchCandidates.series_id],
     references: [series.id],
   }),
 }));

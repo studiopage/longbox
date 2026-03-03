@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { series, request, libraryMapping } from '@/db/schema';
+import { series, request, seriesMatchCandidates } from '@/db/schema';
 import { count, eq, desc } from 'drizzle-orm';
 import { unstable_noStore as noStore } from 'next/cache';
 
@@ -16,8 +16,8 @@ export async function getDashboardStats() {
   ] = await Promise.all([
     db.select({ count: count() }).from(series),
     db.select({ count: count() }).from(request),
-    db.select({ count: count() }).from(libraryMapping).where(eq(libraryMapping.is_manually_verified, true)),
-    db.select({ count: count() }).from(libraryMapping),
+    db.select({ count: count() }).from(seriesMatchCandidates).where(eq(seriesMatchCandidates.is_manually_verified, true)),
+    db.select({ count: count() }).from(seriesMatchCandidates),
     
     // Fetch 6 most recently matched series for the "New Arrivals" shelf
     db.select({
@@ -28,8 +28,8 @@ export async function getDashboardStats() {
         year: series.year
     })
     .from(series)
-    .innerJoin(libraryMapping, eq(libraryMapping.series_id, series.id))
-    .orderBy(desc(libraryMapping.updated_at))
+    .innerJoin(seriesMatchCandidates, eq(seriesMatchCandidates.series_id, series.id))
+    .orderBy(desc(seriesMatchCandidates.updated_at))
     .limit(6)
   ]);
 

@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/db';
-import { series, libraryMapping } from '@/db/schema';
+import { series, seriesMatchCandidates } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
@@ -34,14 +34,14 @@ export async function linkSeriesToMapping(data: MatchPayload) {
     });
 
     // 2. Link the Ghost (The Mapping)
-    await db.update(libraryMapping)
+    await db.update(seriesMatchCandidates)
       .set({ 
         series_id: newSeriesId,
         match_confidence: 1.0,
         is_manually_verified: true,
         updated_at: new Date()
       })
-      .where(eq(libraryMapping.id, data.mappingId));
+      .where(eq(seriesMatchCandidates.id, data.mappingId));
 
     revalidatePath('/library');
     return { success: true };
