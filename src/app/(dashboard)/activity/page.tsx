@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Activity } from 'lucide-react';
 import { getActivityEvents, type ActivityEvent } from '@/actions/activity';
 import { ActivityEventRow } from '@/components/longbox/activity-event-row';
@@ -59,31 +59,51 @@ export default function ActivityPage() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [typeFilter, setTypeFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
-  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  const fetchEvents = useCallback(async (pageNum: number, append: boolean) => {
-    setLoading(true);
-    const result = await getActivityEvents({
-      type: typeFilter,
-      severity: severityFilter,
-      page: pageNum,
-    });
-    setEvents(prev => append ? [...prev, ...result.events] : result.events);
-    setHasMore(result.hasMore);
-    setLoading(false);
-  }, [typeFilter, severityFilter]);
+  const pageRef = useRef(1);
+  const filterKeyRef = useRef(`${typeFilter}:${severityFilter}`);
 
   useEffect(() => {
-    setPage(1);
-    fetchEvents(1, false);
-  }, [fetchEvents]);
+    const currentKey = `${typeFilter}:${severityFilter}`;
+    const isFilterChange = currentKey !== filterKeyRef.current;
+    filterKeyRef.current = currentKey;
+
+    if (isFilterChange) {
+      pageRef.current = 1;
+    }
+
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const result = await getActivityEvents({
+        type: typeFilter,
+        severity: severityFilter,
+        page: isFilterChange ? 1 : pageRef.current,
+      });
+      if (!cancelled) {
+        setEvents(isFilterChange ? result.events : (prev => [...prev, ...result.events]));
+        setHasMore(result.hasMore);
+        setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [typeFilter, severityFilter]);
 
   const loadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchEvents(nextPage, true);
+    pageRef.current += 1;
+    // Trigger re-fetch by toggling a counter
+    setLoading(true);
+    getActivityEvents({
+      type: typeFilter,
+      severity: severityFilter,
+      page: pageRef.current,
+    }).then(result => {
+      setEvents(prev => [...prev, ...result.events]);
+      setHasMore(result.hasMore);
+      setLoading(false);
+    });
   };
 
   const grouped = groupByDate(events);
