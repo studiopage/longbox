@@ -13,6 +13,8 @@ import {
   Users,
   Layers,
   AlertTriangle,
+  Activity,
+  BarChart3,
 } from 'lucide-react';
 import { UserMenu } from './user-menu';
 import { PinnedCollectionsSidebar } from './pinned-collections-sidebar';
@@ -70,6 +72,20 @@ const ROUTES: Array<{
     label: 'Triage',
     icon: AlertTriangle,
     href: '/triage',
+    matchExact: false,
+    disabled: false
+  },
+  {
+    label: 'Activity',
+    icon: Activity,
+    href: '/activity',
+    matchExact: false,
+    disabled: false
+  },
+  {
+    label: 'Analysis',
+    icon: BarChart3,
+    href: '/analysis',
     matchExact: false,
     disabled: false
   },
