@@ -12,6 +12,7 @@ import {
   Library,
   BookOpen,
   Layers,
+  AlertTriangle,
   Menu,
   X
 } from 'lucide-react';
@@ -56,6 +57,13 @@ const ROUTES: Array<{
     label: 'Collections',
     icon: Layers,
     href: '/collections',
+    matchExact: false,
+    disabled: false
+  },
+  {
+    label: 'Triage',
+    icon: AlertTriangle,
+    href: '/triage',
     matchExact: false,
     disabled: false
   },

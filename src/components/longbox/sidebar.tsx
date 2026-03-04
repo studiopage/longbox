@@ -12,6 +12,7 @@ import {
   BookOpen,
   Users,
   Layers,
+  AlertTriangle,
 } from 'lucide-react';
 import { UserMenu } from './user-menu';
 import { PinnedCollectionsSidebar } from './pinned-collections-sidebar';
@@ -62,6 +63,13 @@ const ROUTES: Array<{
     label: 'Collections',
     icon: Layers,
     href: '/collections',
+    matchExact: false,
+    disabled: false
+  },
+  {
+    label: 'Triage',
+    icon: AlertTriangle,
+    href: '/triage',
     matchExact: false,
     disabled: false
   },
