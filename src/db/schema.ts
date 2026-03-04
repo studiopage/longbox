@@ -362,6 +362,22 @@ export const readingList = pgTable('reading_list', {
   unique_user_reading_list_book: uniqueIndex('unique_user_reading_list_book').on(t.user_id, t.book_id)
 }));
 
+// =====================
+// ACTIVITY EVENTS
+// =====================
+
+export const activityEvents = pgTable('activity_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  type: text('type').notNull(),
+  message: text('message').notNull(),
+  metadata: jsonb('metadata'),
+  severity: text('severity').notNull().default('info'),
+  created_at: timestamp('created_at').defaultNow(),
+}, (t) => ({
+  createdAtIdx: index('activity_events_created_at_idx').on(t.created_at),
+  typeIdx: index('activity_events_type_idx').on(t.type),
+}));
+
 // Relations for collections
 export const collectionsRelations = relations(collections, ({ many, one }) => ({
   user: one(users, {
