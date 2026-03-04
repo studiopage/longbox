@@ -4,11 +4,9 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { triggerScan, saveSettings, getSettings, testMetronConnection } from './actions';
 import { updateUserPreferences } from '@/actions/auth';
-import { RotateCw, HardDrive, CheckCircle2, Key, Save, BookOpen, AlertTriangle, Link as LinkIcon, Database, Loader2, User, BookMarked } from 'lucide-react';
+import { RotateCw, HardDrive, CheckCircle2, Key, Save, BookOpen, Database, Loader2, User, BookMarked } from 'lucide-react';
 import { ScannerProgress } from '@/components/longbox/scanner-progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ReviewQueueSection } from '@/components/longbox/review-queue-section';
-import { UnmatchedSeriesSection } from '@/components/longbox/unmatched-series-section';
 import { StatsOverview } from '@/components/longbox/stats-overview';
 import { Label } from '@/components/ui/label';
 
@@ -123,18 +121,10 @@ export default function SettingsPage() {
 
       {/* TABBED INTERFACE */}
       <Tabs defaultValue="scanner" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 bg-secondary border border-border sticky top-0 z-10 rounded">
+        <TabsList className="grid w-full grid-cols-3 bg-secondary border border-border sticky top-0 z-10 rounded">
           <TabsTrigger value="scanner" className="flex items-center gap-2 data-[state=active]:text-primary">
             <HardDrive className="w-4 h-4" />
             Scanner
-          </TabsTrigger>
-          <TabsTrigger value="review" className="flex items-center gap-2 data-[state=active]:text-primary">
-            <AlertTriangle className="w-4 h-4" />
-            Review Queue
-          </TabsTrigger>
-          <TabsTrigger value="matching" className="flex items-center gap-2 data-[state=active]:text-primary">
-            <LinkIcon className="w-4 h-4" />
-            Matching
           </TabsTrigger>
           <TabsTrigger value="config" className="flex items-center gap-2 data-[state=active]:text-primary">
             <Key className="w-4 h-4" />
@@ -207,22 +197,30 @@ export default function SettingsPage() {
                     <li>Extracts metadata from ComicInfo.xml if available</li>
                     <li>Parses series name and issue number from filename</li>
                     <li>Automatically matches to existing series or creates new ones</li>
-                    <li>Files with ambiguous series names go to Review Queue</li>
+                    <li>Low-confidence matches go to the Triage queue for review</li>
                   </ul>
                 </div>
               </div>
             </div>
+
+            {/* Triage Link */}
+            <div className="group relative overflow-hidden rounded border border-border bg-card p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-foreground">File Triage</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Review and assign unmatched files to series
+                  </p>
+                </div>
+                <a
+                  href="/triage"
+                  className="flex items-center gap-2 bg-secondary text-foreground px-4 py-2 rounded font-medium hover:bg-accent transition-colors text-sm"
+                >
+                  Open Triage
+                </a>
+              </div>
+            </div>
           </section>
-        </TabsContent>
-
-        {/* REVIEW QUEUE TAB */}
-        <TabsContent value="review" className="space-y-6 min-h-[600px]">
-          <ReviewQueueSection />
-        </TabsContent>
-
-        {/* MATCHING TAB */}
-        <TabsContent value="matching" className="space-y-6 min-h-[600px]">
-          <UnmatchedSeriesSection />
         </TabsContent>
 
         {/* CONFIGURATION TAB */}
