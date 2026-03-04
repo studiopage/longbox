@@ -13,7 +13,7 @@ Self-hosted comic library manager for organizing, reading, and tracking comic co
 - Next.js 16.1 (App Router) with React 19, TypeScript (strict)
 - PostgreSQL + Drizzle ORM (schema: src/db/schema.ts, config: drizzle.config.ts)
 - NextAuth.js 5.0-beta (credentials + OAuth) - config in src/lib/auth.ts
-- Tailwind CSS 4 + shadcn/ui (Radix primitives) + Lucide icons
+- Tailwind CSS 4 + shadcn/ui (Radix primitives) + Lucide icons + Recharts
 - React Compiler enabled in next.config.ts
 
 ## Design Principles
@@ -38,7 +38,7 @@ Self-hosted comic library manager for organizing, reading, and tracking comic co
 - `src/components/longbox/` - Domain components (50+ files)
 - `src/components/ui/` - shadcn/ui base components
 - `src/components/reader/` - Comic reader UI
-- `src/db/schema.ts` - Full DB schema (19 tables, 4 domains: auth, metadata, user features, system)
+- `src/db/schema.ts` - Full DB schema (20 tables, 5 domains: auth, metadata, user features, system, activity)
 - `src/lib/data/` - Data access layer (reading-progress.ts)
 - `src/lib/rules-engine.ts` - Smart collection rule → Drizzle WHERE clause translator
 - `src/lib/field-definitions.ts` - Rule builder field/operator/value definitions (15 fields)
@@ -54,12 +54,20 @@ Self-hosted comic library manager for organizing, reading, and tracking comic co
 - `src/actions/triage.ts` - Triage server actions (approve/reject groups, file-level ops)
 - `src/app/(dashboard)/triage/` - Triage page (grouped unmatched files)
 - `src/hooks/use-scan-status.ts` - useScanStatus() hook (REST polling)
+- `src/lib/activity-logger.ts` - Activity event logger (logEvent helper, fire-and-forget)
+- `src/actions/activity.ts` - Activity feed server actions (getRecentActivity, getActivityEvents)
+- `src/actions/analysis.ts` - Library analytics server actions (composition, health, completion, reading)
+- `src/app/(dashboard)/activity/` - Activity feed page (filters, date grouping, pagination)
+- `src/app/(dashboard)/analysis/` - Library analytics page (4 sections with Recharts)
+- `src/components/longbox/recent-activity.tsx` - Dashboard activity widget (last 5 events)
+- `src/components/longbox/activity-event-row.tsx` - Activity event row (icon + message + timestamp)
+- `src/components/longbox/stat-progress-bar.tsx` - Reusable progress bar for analytics
+- `src/components/longbox/reading-sparkline.tsx` - Recharts reading pace sparkline
+- `src/components/longbox/publisher-chart.tsx` - Recharts horizontal bar chart
 - `src/types/longbox.ts` - Shared TypeScript types (SmartRules, Condition, FieldDefinition, etc.)
 - `src/middleware.ts` - Auth middleware
 
 ### Planned (new paths for upcoming features)
-- `src/app/(dashboard)/activity/` - Full activity log page
-- `src/app/(dashboard)/analysis/` - Library analytics page
 - `src/app/api/opds/v1.2/` - OPDS feed endpoints for Mihon
 - `src/app/api/webhooks/` - Outbound webhook dispatch
 - `src/lib/opds.ts` - OPDS Atom XML builder helpers
@@ -93,12 +101,7 @@ Self-hosted comic library manager for organizing, reading, and tracking comic co
 - `scan_jobs` table added (tracks scan state: status, files, matched, errors, current_file)
 - `import_queue` renamed to `triage_queue` (triageQueue) with pipeline columns: match_confidence, matched_series_id, signals, status, scan_job_id
 - `books` table gained: `match_flags` (text array) for tracking ["low_confidence", "needs_metadata"]
-
-### Planned Schema Changes
-
-**Activity events table (new):**
-- id, type (scan_complete/file_detected/metadata_fetched/series_linked/error/request_fulfilled/user_action)
-- message (text), metadata (jsonb), severity (info/warning/error), created_at
+- `activity_events` table added (type, message, metadata jsonb, severity, created_at — indexes on created_at and type)
 
 ## Architecture Patterns
 
@@ -133,6 +136,16 @@ Pipeline in `src/lib/scanner/pipeline.ts`. Each file goes through:
    - Medium (60-89%): auto-link but flag with `match_flags: ['low_confidence']`
    - Low (<60%): queue in `triageQueue` for manual review via `/triage` page
 Library path from single source: `appSettings` table key `library_path`.
+
+### Activity Logging — Built
+Events recorded via `logEvent()` from `src/lib/activity-logger.ts`. Fire-and-forget pattern — never throws, logs to console on failure. Instrumented at: scanner lifecycle (scan_started, scan_complete, errors), triage approve/reject, book completion, collection CRUD. Events stored in `activity_events` table with type, message, metadata (jsonb), severity, created_at. Dashboard widget shows last 5 events. `/activity` page supports type and severity filters with date grouping and "load more" pagination.
+
+### Library Analytics — Built
+Four server actions in `src/actions/analysis.ts`, each independently Suspense-wrapped on the `/analysis` page:
+1. **Composition:** stat cards (series/books/size/avg pages) + publisher bar chart (Recharts, top 10 + Other) + decade breakdown
+2. **Metadata Health:** progress bars (ComicVine linked, has credits, has page data) + flagged count
+3. **Series Completion:** complete/almost/in-progress counts + top 10 almost-complete table (requires ComicVine issue data)
+4. **Reading Stats:** books read/in progress/pages/streak + weekly pace sparkline (Recharts AreaChart, 12 weeks)
 
 ### Webhook-Out Pattern (n8n Integration)
 Longbox emits webhooks for external automation. Never fetches/downloads content.
@@ -225,15 +238,16 @@ OPDS 1.2 Atom XML feeds for external reader apps:
 - [x] Settings page cleanup (removed Review Queue + Matching tabs, added Triage link)
 - [x] Deleted legacy: scan-manager, file-based queue, old API routes, review/import pages
 
-### 🔨 Phase 3: Activity & Analysis
-- [ ] Activity events table + logging throughout app
-- [ ] Dashboard activity widget (last 5 events)
-- [ ] Dedicated /activity page (filterable, searchable)
-- [ ] Analysis page: library composition (publisher/format/year breakdowns)
-- [ ] Analysis: metadata health with progress bars
-- [ ] Analysis: series completion tracking (complete/almost/in-progress)
-- [ ] Analysis: reading stats (issues per week, streaks, sparkline)
-- [ ] Actionable links from stats → smart collections
+### ✅ Phase 3: Activity & Analysis (Complete)
+- [x] Activity events table (`activity_events`) + `logEvent()` fire-and-forget helper
+- [x] Instrumented: scanner (start/complete/error), triage (approve/reject), reading (completed), collections (create/delete)
+- [x] Dashboard activity widget (last 5 events with icons and relative timestamps)
+- [x] Dedicated /activity page (type + severity filters, date grouping, load-more pagination)
+- [x] Analysis page: library composition (stat cards, publisher bar chart, decade bar chart via Recharts)
+- [x] Analysis: metadata health with progress bars (ComicVine linked, credits, page data)
+- [x] Analysis: series completion tracking (complete/almost/in-progress stats + top 10 table)
+- [x] Analysis: reading stats (books read, pages, streaks, weekly sparkline via Recharts)
+- [x] Sidebar links for Activity and Analysis (both desktop and mobile)
 
 ### 🔨 Phase 4: Request System
 - [ ] Wishlist/request board (/requests page)
