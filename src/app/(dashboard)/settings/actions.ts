@@ -2,7 +2,7 @@
 
 import { db } from '@/db';
 import { systemSettings } from '@/db/schema';
-import { runFullScan } from '@/lib/scanner/scan-manager';
+import { runFullScan } from '@/lib/scanner/unified-scanner';
 import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
 
@@ -11,7 +11,7 @@ export async function triggerScan() {
   const result = await runFullScan();
   revalidatePath('/');
   revalidatePath('/library');
-  revalidatePath('/review');
+  revalidatePath('/triage');
   return result;
 }
 
