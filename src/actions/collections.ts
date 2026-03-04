@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache';
 import type { SmartRules } from '@/types/longbox';
 import { getCachedSmartCollectionCount, getCachedSmartCollectionBooks, getSmartCollectionCount, getSmartCollectionBooks } from '@/lib/rules-engine';
 import { auth } from '@/lib/auth';
+import { logEvent } from '@/lib/activity-logger';
 
 export interface Collection {
   id: string;
@@ -61,6 +62,12 @@ export async function createCollection(
     }).returning();
 
     revalidatePath('/collections');
+
+    await logEvent('collection_created', `Collection created: ${name}`, {
+      collectionId: newCollection.id,
+      name,
+      isSmart: !!options?.smartRules,
+    });
 
     return {
       success: true,
@@ -310,6 +317,8 @@ export async function deleteCollection(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await db.delete(collections).where(eq(collections.id, collectionId));
+
+    await logEvent('collection_deleted', `Collection deleted`, { collectionId });
 
     revalidatePath('/collections');
 

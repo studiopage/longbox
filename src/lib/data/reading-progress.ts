@@ -7,6 +7,7 @@
 import { db } from '@/db';
 import { read_progress } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { logEvent } from '@/lib/activity-logger';
 
 export interface ReadingProgress {
   page: number;
@@ -119,6 +120,7 @@ export async function markAsCompleted(
   totalPages: number
 ): Promise<void> {
   await updateReadingProgress(bookId, totalPages, totalPages);
+  await logEvent('book_completed', 'Book marked as completed', { bookId });
 }
 
 /**

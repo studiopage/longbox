@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { scannerProgress } from './progress-emitter';
 import { processFile, type ProcessResult } from './pipeline';
 import { AppSettings } from '@/lib/app-settings';
+import { logEvent } from '@/lib/activity-logger';
 
 const ALLOWED_EXTS = ['.cbz', '.zip', '.cbr'];
 
@@ -72,6 +73,7 @@ export async function runFullScan() {
     const msg = `Library path ${libraryPath} is not accessible`;
     console.error(`[SCANNER] ${msg}`);
     scannerProgress.errorScan(msg);
+    await logEvent('error', msg, { libraryPath }, 'error');
     return { success: false, count: 0, queued: 0, time: '0', jobId: null };
   }
 
@@ -97,6 +99,12 @@ export async function runFullScan() {
 
   // Start progress tracking
   scannerProgress.startScan(totalFiles);
+
+  await logEvent('scan_started', `Scan started: ${totalFiles} files to process`, {
+    jobId: job.id,
+    totalFiles,
+    libraryPath,
+  });
 
   try {
     for (let i = 0; i < allFiles.length; i++) {
@@ -173,6 +181,17 @@ export async function runFullScan() {
     scannerProgress.completeScan({ added: matched, queued: triaged, errors, time: duration });
 
     console.log(`[SCANNER] Scan complete in ${duration}s. Matched: ${matched}, Triaged: ${triaged}, Skipped: ${skipped}, Errors: ${errors}`);
+
+    await logEvent('scan_complete', `Scan complete in ${duration}s. Matched: ${matched}, Triaged: ${triaged}, Errors: ${errors}`, {
+      jobId: job.id,
+      duration,
+      matched,
+      triaged,
+      skipped,
+      errors,
+      totalFiles: allFiles.length,
+    });
+
     return { success: true, count: matched, queued: triaged, time: duration, jobId: job.id };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -186,6 +205,7 @@ export async function runFullScan() {
     }).where(eq(scanJobs.id, job.id));
 
     scannerProgress.errorScan(message);
+    await logEvent('error', `Scan failed: ${message}`, { jobId: job.id }, 'error');
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
     return { success: false, count: matched, queued: triaged, time: duration, jobId: job.id };

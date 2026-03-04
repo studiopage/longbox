@@ -5,6 +5,7 @@ import { triageQueue, series, books } from '@/db/schema';
 import { eq, sql, and, desc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import path from 'path';
+import { logEvent } from '@/lib/activity-logger';
 
 // =====================
 // Types
@@ -314,6 +315,12 @@ export async function approveGroup(
     revalidatePath('/library');
     revalidatePath('/');
 
+    await logEvent('triage_approved', `Approved ${items.length} files from ${path.basename(folderPath)}`, {
+      folderPath,
+      count: items.length,
+      seriesId: targetSeriesId,
+    });
+
     return { success: true, count: items.length };
   } catch (error) {
     console.error('approveGroup error:', error);
@@ -339,6 +346,10 @@ export async function rejectGroup(folderPath: string): Promise<void> {
     );
 
   revalidatePath('/triage');
+
+  await logEvent('triage_rejected', `Rejected folder: ${path.basename(folderPath)}`, {
+    folderPath,
+  });
 }
 
 /**
@@ -422,6 +433,12 @@ export async function approveFile(
 
     revalidatePath('/triage');
     revalidatePath('/library');
+
+    await logEvent('triage_approved', `Approved file: ${path.basename(item.file_path)}`, {
+      itemId,
+      seriesId,
+      filePath: item.file_path,
+    });
 
     return { success: true };
   } catch (error) {
