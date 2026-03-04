@@ -45,7 +45,15 @@ Self-hosted comic library manager for organizing, reading, and tracking comic co
 - `src/lib/utils/` - Utilities (comic-metadata.ts, comic-cover-extractor.ts)
 - `src/lib/comicvine.ts` - ComicVine API client
 - `src/lib/metron.ts` - Metron API client
-- `src/lib/scanner/` - File scanner & watcher (chokidar)
+- `src/lib/scanner/` - File scanner, watcher, matching pipeline, confidence scoring
+- `src/lib/scanner/pipeline.ts` - Core processFile() matching pipeline
+- `src/lib/scanner/signals.ts` - Signal extractors (ComicInfo, folder, filename)
+- `src/lib/scanner/confidence.ts` - Confidence scoring (0-100, tiers: high/medium/low)
+- `src/lib/scanner/filename-parser.ts` - Series name + issue number extraction from filenames
+- `src/lib/scanner/unified-scanner.ts` - Full library scan with scan_jobs tracking
+- `src/actions/triage.ts` - Triage server actions (approve/reject groups, file-level ops)
+- `src/app/(dashboard)/triage/` - Triage page (grouped unmatched files)
+- `src/hooks/use-scan-status.ts` - useScanStatus() hook (REST polling)
 - `src/types/longbox.ts` - Shared TypeScript types (SmartRules, Condition, FieldDefinition, etc.)
 - `src/middleware.ts` - Auth middleware
 
@@ -53,13 +61,8 @@ Self-hosted comic library manager for organizing, reading, and tracking comic co
 - `src/app/(dashboard)/activity/` - Full activity log page
 - `src/app/(dashboard)/analysis/` - Library analytics page
 - `src/app/api/opds/v1.2/` - OPDS feed endpoints for Mihon
-- `src/app/api/scanner/status/` - Scan status polling endpoint (REST)
-- `src/app/api/scanner/stream/` - Real-time scan progress (SSE, exists already)
 - `src/app/api/webhooks/` - Outbound webhook dispatch
 - `src/lib/opds.ts` - OPDS Atom XML builder helpers
-- `src/lib/filename-parser.ts` - Fuzzy filename parsing for series/issue extraction
-- `src/lib/scanner/matching.ts` - Multi-signal matching pipeline (folder + filename + ComicInfo + ComicVine)
-- `src/lib/scanner/confidence.ts` - Match confidence scoring
 - `src/lib/webhooks.ts` - Webhook dispatch utility (n8n integration)
 
 ## Code Conventions
@@ -120,16 +123,16 @@ Scans, metadata fetching, and matching run server-side, completely decoupled fro
    - SSE stream (`/api/scanner/stream`) - real-time, used by scanner detail page
 4. `useScanStatus()` React hook available for any component to consume scan state
 
-### Scanner Multi-Signal Matching
-When processing files, the scanner layers multiple signals to determine series membership:
-1. **Folder structure** (strongest) - files in same parent directory = likely same series
-2. **Filename parsing** - extract series name + issue/volume number, normalize punctuation
-3. **ComicInfo.xml** - if embedded in CBZ, provides explicit metadata
-4. **ComicVine API** - search to confirm series, enrich with publisher/description/credits
-5. **Confidence scoring** - each signal contributes to a confidence score:
-   - High confidence (>80%): auto-link to series silently
-   - Medium confidence (50-80%): auto-link but flag for review
-   - Low confidence (<50%): queue for manual review
+### Scanner Multi-Signal Matching — Built
+Pipeline in `src/lib/scanner/pipeline.ts`. Each file goes through:
+1. **Signal extraction** (`signals.ts`): ComicInfo.xml, folder name, filename parsed in parallel
+2. **Series resolution**: exact match in DB, then case-insensitive (ilike)
+3. **Confidence scoring** (`confidence.ts`): ComicInfo match +40, folder +25, filename +15, metadata bonuses +5 each
+4. **Routing by tier**:
+   - High (>=90%): auto-link to series silently
+   - Medium (60-89%): auto-link but flag with `match_flags: ['low_confidence']`
+   - Low (<60%): queue in `triageQueue` for manual review via `/triage` page
+Library path from single source: `appSettings` table key `library_path`.
 
 ### Webhook-Out Pattern (n8n Integration)
 Longbox emits webhooks for external automation. Never fetches/downloads content.
@@ -186,13 +189,17 @@ OPDS 1.2 Atom XML feeds for external reader apps:
 - Reading progress tracking
 - Favorites system
 - User auth (credentials + OAuth)
-- Settings page (Scanner, Review Queue, Matching, Configuration, Preferences)
+- Settings page (Scanner, Configuration, Preferences)
 - Cover extraction and caching
 - Smart collections (rule engine, CRUD, rule builder UI, live preview)
 - Collections pages (grid, detail, create/edit with smart/manual modes)
 - Sidebar pinned collections + mobile dashboard chips
 - Starter collections seeded on first run (Unread, Recently Added, Needs Metadata, Ongoing)
 - Schema cleanup (consolidated requests, dropped seriesMatchCandidates + readingHistory, added scan_jobs + triageQueue)
+- Scanner matching pipeline (signal extraction, confidence scoring, auto-link/triage routing)
+- Triage page (grouped by folder, batch approve/reject, confidence badges)
+- Unified scanner (scan_jobs persistence, replaces old dual-queue system)
+- useScanStatus() hook + REST polling endpoint
 
 ### ✅ Phase 1: Smart Collections (Complete)
 - [x] Schema: add smart_rules, pinned, icon, sort_preference to collections table
@@ -204,16 +211,19 @@ OPDS 1.2 Atom XML feeds for external reader apps:
 - [x] Starter collections seeded on first run (Unread, Recently Added, Needs Metadata, Ongoing)
 - [x] Cache invalidation on reading progress changes
 
-### 🔨 Phase 2: Scanner Intelligence & Series Linking
-- [ ] Filename parser (series name + issue extraction, punctuation normalization)
-- [ ] Folder-based grouping (parent directory = series)
-- [ ] ComicInfo.xml extraction from CBZ files
-- [ ] Multi-signal matching pipeline with confidence scoring
-- [ ] Bulk triage UI (grouped unmatched items, one-click batch linking)
-- [ ] Background scan architecture (scan_jobs table, decoupled from browser)
-- [ ] Global scan progress indicator (header spinner + dashboard widget)
-- [ ] useScanStatus() hook for any component
-- [ ] REST polling endpoint + SSE stream
+### ✅ Phase 2: Scanner Intelligence & Series Linking (Complete)
+- [x] Filename parser (series name + issue extraction, punctuation normalization)
+- [x] Signal extractors (ComicInfo.xml, folder name, filename) with priority: ComicInfo > Folder > Filename
+- [x] Confidence scoring (0-100 scale, tiers: high >=90, medium >=60, low <60)
+- [x] Matching pipeline: extract signals → resolve series → score → route (auto-link/flag/triage)
+- [x] Unified scanner (replaces old scan-manager + file-based queue)
+- [x] Watcher rewrite (uses pipeline instead of inline matching)
+- [x] scan_jobs table (persistent scan state, REST polling endpoint)
+- [x] triageQueue table (replaces importQueue with confidence + signals columns)
+- [x] Triage page (/triage) with grouped-by-folder display, batch approve/reject
+- [x] useScanStatus() hook for any component
+- [x] Settings page cleanup (removed Review Queue + Matching tabs, added Triage link)
+- [x] Deleted legacy: scan-manager, file-based queue, old API routes, review/import pages
 
 ### 🔨 Phase 3: Activity & Analysis
 - [ ] Activity events table + logging throughout app
@@ -246,5 +256,6 @@ OPDS 1.2 Atom XML feeds for external reader apps:
 - `output: 'standalone'` set for Docker builds
 - Cover cache dir (`public/cache/covers/`) is gitignored - must be writable in production
 - ComicVine API key is stored in DB (Settings > Configuration), NOT in .env
-- Scanner currently doesn't link books to series properly — files imported as individual entries
+- Library path: single source of truth is `appSettings` table (key: `library_path`), not env vars
+- Reusable cards: `TriageGroupCard` for triage page groups
 - No test suite exists yet
