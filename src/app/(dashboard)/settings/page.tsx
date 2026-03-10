@@ -4,11 +4,112 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { triggerScan, saveSettings, getSettings, testMetronConnection, getWebhookUrl, saveWebhookUrl } from './actions';
 import { updateUserPreferences } from '@/actions/auth';
-import { RotateCw, HardDrive, CheckCircle2, Key, Save, BookOpen, Database, Loader2, User, BookMarked, Webhook } from 'lucide-react';
+import { RotateCw, HardDrive, CheckCircle2, Key, Save, BookOpen, Database, Loader2, User, BookMarked, Webhook, Copy, Check, Rss } from 'lucide-react';
 import { ScannerProgress } from '@/components/longbox/scanner-progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatsOverview } from '@/components/longbox/stats-overview';
 import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+
+function OpdsConnectionCard() {
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [baseUrl, setBaseUrl] = useState('');
+
+  useEffect(() => {
+    setBaseUrl(window.location.origin);
+  }, []);
+
+  const opdsBase = `${baseUrl}/api/opds/v1.2`;
+
+  const feeds = [
+    { label: 'Catalog Root', path: '/catalog', description: 'Main entry point for OPDS readers' },
+    { label: 'All Series', path: '/series', description: 'Browse all series with book counts' },
+    { label: 'Publishers', path: '/publishers', description: 'Browse by publisher' },
+    { label: 'Recently Added', path: '/new', description: 'Latest 50 additions' },
+    { label: 'Reading List', path: '/reading', description: 'Your in-progress books' },
+    { label: 'Collections', path: '/collections', description: 'Smart and manual collections' },
+    { label: 'Search', path: '/search?q={searchTerms}', description: 'OpenSearch endpoint' },
+  ];
+
+  const copyToClipboard = (key: string, value: string) => {
+    navigator.clipboard.writeText(value);
+    setCopiedKey(key);
+    toast.success('Copied to clipboard');
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  return (
+    <div className="group relative overflow-hidden rounded border border-border bg-card p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Rss className="w-4 h-4 text-primary" />
+        <label className="text-sm font-medium text-foreground">OPDS Feeds</label>
+        <span className="text-xs text-muted-foreground">(Mihon / External Readers)</span>
+      </div>
+
+      {/* Primary catalog URL — prominent */}
+      <div className="mb-4">
+        <label className="block text-xs text-muted-foreground mb-1">Catalog URL (use this in Mihon)</label>
+        <div className="flex gap-2">
+          <code className="flex-1 bg-secondary border border-border rounded px-4 py-2 text-sm font-mono text-foreground truncate">
+            {baseUrl ? `${opdsBase}/catalog` : 'Loading...'}
+          </code>
+          <button
+            onClick={() => copyToClipboard('catalog', `${opdsBase}/catalog`)}
+            disabled={!baseUrl}
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded font-medium hover:bg-primary/90 transition duration-200 ease-out disabled:opacity-50 shrink-0"
+          >
+            {copiedKey === 'catalog' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copiedKey === 'catalog' ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+      </div>
+
+      {/* Individual feed URLs */}
+      <details className="group/details">
+        <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
+          Show all feed endpoints
+        </summary>
+        <div className="mt-3 space-y-2">
+          {feeds.map((feed) => (
+            <div key={feed.path} className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-foreground shrink-0">{feed.label}</span>
+                  <span className="text-xs text-muted-foreground hidden sm:inline">— {feed.description}</span>
+                </div>
+                <code className="block text-xs font-mono text-muted-foreground truncate">
+                  {baseUrl ? `${opdsBase}${feed.path}` : '...'}
+                </code>
+              </div>
+              <button
+                onClick={() => copyToClipboard(feed.path, `${opdsBase}${feed.path}`)}
+                disabled={!baseUrl}
+                className="p-1.5 rounded hover:bg-accent transition-colors shrink-0"
+                title={`Copy ${feed.label} URL`}
+              >
+                {copiedKey === feed.path ? (
+                  <Check className="w-3.5 h-3.5 text-primary" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                )}
+              </button>
+            </div>
+          ))}
+        </div>
+      </details>
+
+      {/* Setup instructions */}
+      <div className="mt-4 p-3 bg-secondary/50 border border-border rounded text-xs text-muted-foreground space-y-1">
+        <p className="font-medium text-foreground">Mihon Setup</p>
+        <ol className="list-decimal list-inside space-y-0.5">
+          <li>Install the OPDS extension in Mihon</li>
+          <li>Add a new source with the Catalog URL above</li>
+          <li>Enter your Longbox email and password as credentials</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { data: session } = useSession();
@@ -364,6 +465,9 @@ export default function SettingsPage() {
                 </p>
                 {webhookMsg && <p className="text-sm text-primary/70 mt-2 font-medium animate-in fade-in">{webhookMsg}</p>}
               </div>
+
+              {/* OPDS Connection Info */}
+              <OpdsConnectionCard />
 
               {/* System Info - Glass Card */}
               <div className="group relative overflow-hidden rounded border border-border bg-card p-6">
