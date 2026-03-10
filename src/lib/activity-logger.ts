@@ -10,7 +10,10 @@ export type ActivityEventType =
   | 'triage_rejected'
   | 'book_completed'
   | 'collection_created'
-  | 'collection_deleted';
+  | 'collection_deleted'
+  | 'request_created'
+  | 'request_fulfilled'
+  | 'request_deleted';
 
 export type ActivitySeverity = 'info' | 'warning' | 'error';
 

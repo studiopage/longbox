@@ -6,6 +6,9 @@ import {
   FolderOpen,
   Layers,
   Activity,
+  ShoppingCart,
+  CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -26,6 +29,9 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   book_completed: BookOpen,
   collection_created: Layers,
   collection_deleted: Layers,
+  request_created: ShoppingCart,
+  request_fulfilled: CheckCircle2,
+  request_deleted: Trash2,
 };
 
 const SEVERITY_COLORS: Record<string, string> = {

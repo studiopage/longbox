@@ -5,6 +5,8 @@ import { issues, requests, series } from '@/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { getComicVineIssues, getComicVineVolume } from '@/lib/comicvine';
+import { logEvent } from '@/lib/activity-logger';
+import { fireWebhook } from '@/lib/webhooks';
 
 // ------------------------------------------------------------------
 // REPAIR TOOL: Force Sync Issues (Fixes the "0 Issues" bug)
@@ -89,6 +91,22 @@ export async function requestIssueAction(issueId: string) {
   });
 
   revalidatePath(`/series/${issue.series_id}`);
+  revalidatePath('/requests');
+
+  logEvent('request_created', `Requested ${ser?.name || 'Unknown'} #${issue.issue_number}`, {
+    seriesName: ser?.name,
+    issueNumber: issue.issue_number,
+    publisher: ser?.publisher,
+    cvId: issue.cv_id,
+  });
+
+  fireWebhook('request_created', {
+    series: ser?.name || 'Unknown',
+    issueNumber: issue.issue_number,
+    publisher: ser?.publisher,
+    cvId: issue.cv_id,
+  });
+
   return { success: true };
 }
 
@@ -133,6 +151,21 @@ export async function requestAllMissingAction(seriesId: string) {
   });
 
   revalidatePath(`/series/${seriesId}`);
+  revalidatePath('/requests');
+
+  logEvent('request_created', `Requested ${missingIssues.length} missing issues for ${ser?.name || 'Unknown'}`, {
+    seriesName: ser?.name,
+    count: missingIssues.length,
+    publisher: ser?.publisher,
+  });
+
+  fireWebhook('request_created', {
+    series: ser?.name || 'Unknown',
+    count: missingIssues.length,
+    publisher: ser?.publisher,
+    batch: true,
+  });
+
   return { success: true, count: missingIssues.length };
 }
 
@@ -159,5 +192,11 @@ export async function deleteRequestAction(requestId: string) {
   if (req.series_id) {
     revalidatePath(`/series/${req.series_id}`);
   }
+
+  logEvent('request_deleted', `Removed request for ${req.title} #${req.issue_number}`, {
+    seriesName: req.title,
+    issueNumber: req.issue_number,
+  });
+
   return { success: true };
 }
