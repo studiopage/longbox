@@ -31,11 +31,27 @@ function OpdsConnectionCard() {
     { label: 'Search', path: '/search?q={searchTerms}', description: 'OpenSearch endpoint' },
   ];
 
-  const copyToClipboard = (key: string, value: string) => {
-    navigator.clipboard.writeText(value);
-    setCopiedKey(key);
-    toast.success('Copied to clipboard');
-    setTimeout(() => setCopiedKey(null), 2000);
+  const copyToClipboard = async (key: string, value: string) => {
+    try {
+      // navigator.clipboard requires HTTPS; fall back to execCommand for HTTP
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = value;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedKey(key);
+      toast.success('Copied to clipboard');
+      setTimeout(() => setCopiedKey(null), 2000);
+    } catch {
+      toast.error('Failed to copy — try selecting and copying manually');
+    }
   };
 
   return (
@@ -54,6 +70,7 @@ function OpdsConnectionCard() {
             {baseUrl ? `${opdsBase}/catalog` : 'Loading...'}
           </code>
           <button
+            type="button"
             onClick={() => copyToClipboard('catalog', `${opdsBase}/catalog`)}
             disabled={!baseUrl}
             className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded font-medium hover:bg-primary/90 transition duration-200 ease-out disabled:opacity-50 shrink-0"
@@ -82,6 +99,7 @@ function OpdsConnectionCard() {
                 </code>
               </div>
               <button
+                type="button"
                 onClick={() => copyToClipboard(feed.path, `${opdsBase}${feed.path}`)}
                 disabled={!baseUrl}
                 className="p-1.5 rounded hover:bg-accent transition-colors shrink-0"
