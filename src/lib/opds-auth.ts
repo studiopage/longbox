@@ -52,18 +52,35 @@ export async function validateOPDSAuth(
     return UNAUTHORIZED();
   }
 
-  const [user] = await db
-    .select({ id: users.id, password: users.password })
+  // Try email lookup first, then username/name lookup
+  let [user] = await db
+    .select({ id: users.id, password: users.password, email: users.email })
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
 
-  if (!user?.password) {
+  // If no match by email, try by name (some OPDS clients send username, not email)
+  if (!user) {
+    [user] = await db
+      .select({ id: users.id, password: users.password, email: users.email })
+      .from(users)
+      .where(eq(users.name, email))
+      .limit(1);
+  }
+
+  if (!user) {
+    console.log('[OPDS Auth] No user found for:', email);
+    return UNAUTHORIZED();
+  }
+
+  if (!user.password) {
+    console.log('[OPDS Auth] User has no password (OAuth-only account):', email);
     return UNAUTHORIZED();
   }
 
   const valid = await verifyPassword(password, user.password);
   if (!valid) {
+    console.log('[OPDS Auth] Invalid password for:', email);
     return UNAUTHORIZED();
   }
 
