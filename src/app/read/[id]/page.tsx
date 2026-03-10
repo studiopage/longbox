@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Settings, Maximize, Minimize } from 'lucide-react';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { getBookInfo, saveReadingProgress } from '@/actions/reading';
 import { ReaderSettingsSheet, ReadMode } from '@/components/reader/reader-settings-sheet';
 import { ColorCorrectionSheet } from '@/components/reader/color-correction-sheet';
@@ -32,6 +33,7 @@ export default function ReaderPage({ params }: { params: Promise<{ id: string }>
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef<number | null>(null);
+  const zoomScaleRef = useRef(1);
 
   // Core state
   const [page, setPage] = useState(1);
@@ -204,18 +206,21 @@ export default function ReaderPage({ params }: { params: Promise<{ id: string }>
       return;
     }
 
+    // When zoomed in, only toggle controls — don't navigate
+    if (zoomScaleRef.current > 1.05) {
+      toggleControls();
+      return;
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const width = rect.width;
 
     if (clickX < width * 0.3) {
-      // Left 30% - go previous
       goPrev();
     } else if (clickX > width * 0.7) {
-      // Right 30% - go next
       goNext();
     } else {
-      // Middle - toggle controls
       toggleControls();
     }
   };
@@ -311,46 +316,66 @@ export default function ReaderPage({ params }: { params: Promise<{ id: string }>
 
       {/* Main Content */}
       {settings.readMode === 'webtoon' ? (
-        // Webtoon Mode - Vertical scroll
-        <div className="flex flex-col items-center pt-20 pb-32" onClick={toggleControls}>
-          {webtoonPages.map((pageNum) => (
-            <img
-              key={pageNum}
-              src={`/api/read/${id}/${pageNum}`}
-              alt={`Page ${pageNum}`}
-              className="w-full max-w-3xl"
-              style={imageStyle}
-              loading="lazy"
-            />
-          ))}
-        </div>
-      ) : (
-        // Standard / RTL Mode - Single page view
-        <div
-          className="relative w-full h-full flex items-center justify-center cursor-pointer"
-          onClick={handleImageClick}
+        // Webtoon Mode - Vertical scroll with zoom
+        <TransformWrapper
+          initialScale={1}
+          minScale={1}
+          maxScale={4}
+          doubleClick={{ mode: 'toggle', step: 1 }}
+          panning={{ disabled: false }}
         >
-          <img
+          <TransformComponent
+            wrapperStyle={{ width: '100%', height: '100%', overflow: 'auto' }}
+          >
+            <div className="flex flex-col items-center pt-20 pb-32" onClick={toggleControls}>
+              {webtoonPages.map((pageNum) => (
+                <img
+                  key={pageNum}
+                  src={`/api/read/${id}/${pageNum}`}
+                  alt={`Page ${pageNum}`}
+                  className="w-full max-w-3xl"
+                  style={imageStyle}
+                  loading="lazy"
+                />
+              ))}
+            </div>
+          </TransformComponent>
+        </TransformWrapper>
+      ) : (
+        // Standard / RTL Mode - Single page view with zoom
+        <div className="relative w-full h-full flex items-center justify-center cursor-pointer">
+          <TransformWrapper
             key={page}
-            src={`/api/read/${id}/${page}`}
-            alt={`Page ${page}`}
-            className="max-h-screen max-w-full object-contain select-none"
-            style={imageStyle}
-            onLoad={() => setLoading(false)}
-            onError={() => setLoading(false)}
-          />
+            initialScale={1}
+            minScale={1}
+            maxScale={4}
+            doubleClick={{ mode: 'toggle', step: 1 }}
+            panning={{ disabled: false }}
+            onTransformed={(_ref, state) => {
+              zoomScaleRef.current = state.scale;
+            }}
+          >
+            <TransformComponent
+              wrapperStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              contentStyle={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <img
+                src={`/api/read/${id}/${page}`}
+                alt={`Page ${page}`}
+                className="max-h-screen max-w-full object-contain select-none"
+                style={imageStyle}
+                onLoad={() => setLoading(false)}
+                onError={() => setLoading(false)}
+                onClick={handleImageClick}
+              />
+            </TransformComponent>
+          </TransformWrapper>
 
           {loading && (
-            <div className="absolute inset-0 flex items-center justify-center">
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
             </div>
           )}
-
-          {/* Touch zone indicators (shown briefly on first load) */}
-          <div className="absolute inset-0 pointer-events-none opacity-0">
-            <div className="absolute left-0 top-0 bottom-0 w-[30%] bg-white/5" />
-            <div className="absolute right-0 top-0 bottom-0 w-[30%] bg-white/5" />
-          </div>
         </div>
       )}
 

@@ -1,9 +1,11 @@
 import path from 'path';
 import { db } from '@/db';
-import { books, series, triageQueue } from '@/db/schema';
-import { eq, ilike } from 'drizzle-orm';
+import { books, series, triageQueue, requests, issues } from '@/db/schema';
+import { eq, and, ilike } from 'drizzle-orm';
 import { extractAllSignals, deriveSeriesName, deriveIssueNumber, type ExtractedSignals } from './signals';
 import { scoreConfidence, type ConfidenceResult } from './confidence';
+import { logEvent } from '@/lib/activity-logger';
+import { fireWebhook } from '@/lib/webhooks';
 
 // =====================
 // Matching Pipeline
@@ -164,6 +166,54 @@ async function insertTriage(
 }
 
 /**
+ * Check if this newly-linked book fulfills any open requests.
+ * Matches on series_id + issue_number. Updates request status and issue status.
+ */
+async function checkFulfillment(seriesId: string, issueNumber: string, seriesName: string): Promise<void> {
+  try {
+    // Find matching open requests for this series + issue number
+    const openRequests = await db
+      .select({ id: requests.id, issue_id: requests.issue_id })
+      .from(requests)
+      .where(
+        and(
+          eq(requests.series_id, seriesId),
+          eq(requests.issue_number, issueNumber),
+          eq(requests.status, 'requested')
+        )
+      );
+
+    if (openRequests.length === 0) return;
+
+    for (const req of openRequests) {
+      await db.update(requests).set({
+        status: 'fulfilled',
+        fulfilled_at: new Date(),
+      }).where(eq(requests.id, req.id));
+
+      // Update issue status from 'wanted' to 'downloaded'
+      if (req.issue_id) {
+        await db.update(issues).set({ status: 'downloaded' }).where(eq(issues.id, req.issue_id));
+      }
+    }
+
+    logEvent('request_fulfilled', `Fulfilled ${openRequests.length} request(s) for ${seriesName} #${issueNumber}`, {
+      seriesName,
+      issueNumber,
+      count: openRequests.length,
+    });
+
+    fireWebhook('request_fulfilled', {
+      series: seriesName,
+      issueNumber,
+      count: openRequests.length,
+    });
+  } catch (err) {
+    console.error('[PIPELINE] Fulfillment check failed:', err);
+  }
+}
+
+/**
  * Process a single comic file through the matching pipeline.
  *
  * Pipeline steps:
@@ -224,6 +274,7 @@ export async function processFile(
     if (confidence.tier === 'high' && candidate) {
       // High confidence + known series → auto-link
       await insertBook(signals, candidate.id, issueNumber, []);
+      await checkFulfillment(candidate.id, issueNumber, candidate.name);
       return {
         action: 'linked',
         seriesId: candidate.id,
@@ -235,6 +286,7 @@ export async function processFile(
     if (confidence.tier === 'medium' && candidate) {
       // Medium confidence + known series → auto-link with flag
       await insertBook(signals, candidate.id, issueNumber, ['low_confidence']);
+      await checkFulfillment(candidate.id, issueNumber, candidate.name);
       return {
         action: 'linked_flagged',
         seriesId: candidate.id,

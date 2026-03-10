@@ -5,6 +5,7 @@ import { systemSettings } from '@/db/schema';
 import { runFullScan } from '@/lib/scanner/unified-scanner';
 import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
+import { AppSettings } from '@/lib/app-settings';
 
 // --- SCANNER ACTION ---
 export async function triggerScan() {
@@ -71,6 +72,20 @@ export async function saveSettings(data: {
     return { success: false };
   }
 }
+
+// --- WEBHOOK SETTINGS ---
+
+export async function getWebhookUrl(): Promise<string> {
+  return AppSettings.get('webhook_url');
+}
+
+export async function saveWebhookUrl(url: string) {
+  await AppSettings.set('webhook_url', url, 'Outbound webhook URL for request notifications (n8n)');
+  revalidatePath('/settings');
+  return { success: true };
+}
+
+// --- METRON TEST ---
 
 export async function testMetronConnection(username: string, apiKey: string) {
   if (!username || !apiKey) {

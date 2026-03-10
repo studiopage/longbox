@@ -13,8 +13,10 @@ import {
   ImageOff,
   Sparkles,
   Building2,
+  Compass,
 } from 'lucide-react';
 import { browseComicVine, searchComicVine } from '@/lib/comicvine';
+import { checkComicVineConfigured } from '@/actions/discovery';
 
 const DECADES = [
   { value: 'all', label: 'Any Year' },
@@ -70,6 +72,7 @@ export default function DiscoveryPage() {
   const [year, setYear] = useState('all');
   const [publisher, setPublisher] = useState('all');
   const [sort, setSort] = useState('newest');
+  const [apiConfigured, setApiConfigured] = useState<boolean | null>(null);
 
   // Autocomplete search
   useEffect(() => {
@@ -143,6 +146,11 @@ export default function DiscoveryPage() {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Check ComicVine API configuration
+  useEffect(() => {
+    checkComicVineConfigured().then(setApiConfigured);
   }, []);
 
   return (
@@ -288,11 +296,37 @@ export default function DiscoveryPage() {
             ))}
           </div>
         ) : seriesResults.length === 0 ? (
-          <div className="text-center py-16">
-            <Book className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-            <h3 className="text-lg font-medium text-muted-foreground">No series found</h3>
-            <p className="text-muted-foreground mt-1 text-sm">Try adjusting your filters or check API settings</p>
-          </div>
+          apiConfigured === false ? (
+            <div className="text-center py-16">
+              <Compass className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <h3 className="text-lg font-medium text-foreground">ComicVine Not Configured</h3>
+              <p className="text-muted-foreground mt-2 text-sm max-w-md mx-auto">
+                Add your ComicVine API key in Settings to browse and discover series.
+              </p>
+              <div className="flex flex-col items-center gap-3 mt-6">
+                <Link
+                  href="/settings"
+                  className="px-4 py-2 bg-primary/10 border border-primary/20 text-primary rounded hover:bg-primary/20 transition-colors text-sm"
+                >
+                  Go to Settings
+                </Link>
+                <Link
+                  href="/discover/characters"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Browse Characters instead
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <Book className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <h3 className="text-lg font-medium text-muted-foreground">No series found</h3>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Try adjusting your filters or check your API key in Settings
+              </p>
+            </div>
+          )
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
             {seriesResults.map((item) => (

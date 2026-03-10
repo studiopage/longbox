@@ -7,6 +7,11 @@ import { revalidatePath } from 'next/cache';
 import path from 'path';
 import { logEvent } from '@/lib/activity-logger';
 
+/** Escape SQL LIKE wildcards (% and _) to prevent pattern injection. */
+function escapeLikePattern(value: string): string {
+  return value.replace(/[%_\\]/g, '\\$&');
+}
+
 // =====================
 // Types
 // =====================
@@ -221,7 +226,7 @@ export async function approveGroup(
       .from(triageQueue)
       .where(
         and(
-          sql`${triageQueue.file_path} LIKE ${folderPath + '/%'}`,
+          sql`${triageQueue.file_path} LIKE ${escapeLikePattern(folderPath) + '/%'} ESCAPE '\\'`,
           eq(triageQueue.status, 'pending')
         )
       );
@@ -340,7 +345,7 @@ export async function rejectGroup(folderPath: string): Promise<void> {
     .set({ status: 'rejected' })
     .where(
       and(
-        sql`${triageQueue.file_path} LIKE ${folderPath + '/%'}`,
+        sql`${triageQueue.file_path} LIKE ${escapeLikePattern(folderPath) + '/%'} ESCAPE '\\'`,
         eq(triageQueue.status, 'pending')
       )
     );

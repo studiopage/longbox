@@ -20,6 +20,7 @@ import { MarkAsReadButton } from '@/components/longbox/mark-as-read-button';
 import { IssueOptionsMenu } from '@/components/longbox/issue-options-menu';
 import { SyncIssuesButton } from '@/components/longbox/sync-issues-button';
 import { ImportButton } from '@/components/longbox/import-button';
+import { RequestAllMissingButton, RequestIssueButton } from '@/components/longbox/request-missing-button';
 
 export default async function SeriesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -149,8 +150,10 @@ function ActionButtons({ data }: { data: SeriesPageData }) {
   }
 
   if (data.context === 'managed') {
+    const missingCount = data.issues.filter(i => i.status === 'missing').length;
     return (
       <>
+        <RequestAllMissingButton seriesId={data.localSeriesId!} missingCount={missingCount} />
         <SyncIssuesButton seriesId={data.localSeriesId!} cvId={data.cvId?.toString() || null} />
         <FavoriteSeriesButton seriesId={data.localSeriesId!} initialFavorited={data.isFavorited} />
         <SeriesOptionsMenu seriesId={data.localSeriesId!} />
@@ -283,11 +286,20 @@ function IssueGrid({ data }: { data: SeriesPageData }) {
               #{issue.issueNumber}
             </div>
 
-            {/* Read Badge */}
-            {issue.isRead && (
+            {/* Status Badge */}
+            {issue.isRead ? (
               <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
                 <CheckCircle2 className="w-4 h-4 text-primary-foreground" />
               </div>
+            ) : issue.status === 'wanted' ? (
+              <div className="absolute top-2 right-2 bg-amber-500/80 rounded px-1.5 py-0.5 text-[10px] font-bold text-black">
+                WANTED
+              </div>
+            ) : null}
+
+            {/* Request Button (hover, missing issues only) */}
+            {data.context === 'managed' && (
+              <RequestIssueButton issueId={issue.id} status={issue.status} />
             )}
           </div>
 

@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { triggerScan, saveSettings, getSettings, testMetronConnection } from './actions';
+import { triggerScan, saveSettings, getSettings, testMetronConnection, getWebhookUrl, saveWebhookUrl } from './actions';
 import { updateUserPreferences } from '@/actions/auth';
-import { RotateCw, HardDrive, CheckCircle2, Key, Save, BookOpen, Database, Loader2, User, BookMarked } from 'lucide-react';
+import { RotateCw, HardDrive, CheckCircle2, Key, Save, BookOpen, Database, Loader2, User, BookMarked, Webhook } from 'lucide-react';
 import { ScannerProgress } from '@/components/longbox/scanner-progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatsOverview } from '@/components/longbox/stats-overview';
@@ -29,6 +29,11 @@ export default function SettingsPage() {
   const [metronMsg, setMetronMsg] = useState("");
   const [testingMetron, setTestingMetron] = useState(false);
 
+  // Webhook State
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [savingWebhook, setSavingWebhook] = useState(false);
+  const [webhookMsg, setWebhookMsg] = useState("");
+
   // User Preferences State
   const [readMode, setReadMode] = useState('standard');
   const [autoScroll, setAutoScroll] = useState(false);
@@ -43,6 +48,9 @@ export default function SettingsPage() {
       if (s?.cv_api_key) setApiKey(s.cv_api_key);
       if (s?.metron_username) setMetronUsername(s.metron_username);
       if (s?.metron_api_key) setMetronApiKey(s.metron_api_key);
+    });
+    getWebhookUrl().then(url => {
+      if (url) setWebhookUrl(url);
     });
   }, []);
 
@@ -84,6 +92,14 @@ export default function SettingsPage() {
     setTestingMetron(false);
     setMetronMsg(result.message);
     setTimeout(() => setMetronMsg(""), 5000);
+  };
+
+  const handleSaveWebhook = async () => {
+    setSavingWebhook(true);
+    await saveWebhookUrl(webhookUrl);
+    setSavingWebhook(false);
+    setWebhookMsg("Webhook URL saved!");
+    setTimeout(() => setWebhookMsg(""), 3000);
   };
 
   const handleSavePreferences = async () => {
@@ -317,6 +333,36 @@ export default function SettingsPage() {
                     {metronMsg}
                   </p>
                 )}
+              </div>
+
+              {/* Webhook URL Card - Glass */}
+              <div className="group relative overflow-hidden rounded border border-border bg-card p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Webhook className="w-4 h-4 text-primary" />
+                  <label className="text-sm font-medium text-foreground">Webhook URL</label>
+                  <span className="text-xs text-muted-foreground">(n8n / Automation)</span>
+                </div>
+                <div className="flex gap-4">
+                  <input
+                    type="url"
+                    value={webhookUrl}
+                    onChange={(e) => setWebhookUrl(e.target.value)}
+                    placeholder="https://your-n8n-instance.com/webhook/..."
+                    className="flex-1 bg-secondary border border-border rounded px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition duration-200 ease-out"
+                  />
+                  <button
+                    onClick={handleSaveWebhook}
+                    disabled={savingWebhook}
+                    className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2 rounded font-bold hover:bg-primary/90 transition duration-200 ease-out disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    {savingWebhook ? "Saving..." : "Save"}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Fires on new requests and fulfillments. Payload includes series name, issue number, publisher, and ComicVine ID. Leave blank to disable.
+                </p>
+                {webhookMsg && <p className="text-sm text-primary/70 mt-2 font-medium animate-in fade-in">{webhookMsg}</p>}
               </div>
 
               {/* System Info - Glass Card */}
