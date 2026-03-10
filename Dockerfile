@@ -40,6 +40,16 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Copy database migrations and migration runner
+COPY --from=builder /app/drizzle ./drizzle
+COPY --from=builder /app/scripts/migrate.mjs ./scripts/migrate.mjs
+COPY --from=deps /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
+COPY --from=deps /app/node_modules/postgres ./node_modules/postgres
+
+# Copy entrypoint
+COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+
 # Create writable cover cache directory
 RUN mkdir -p /app/public/cache/covers && chown -R nextjs:nodejs /app/public/cache
 
@@ -47,4 +57,4 @@ USER nextjs
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
