@@ -1,4 +1,4 @@
-# Longbox - Comic Library Manager
+   # Longbox - Comic Library Manager
 
 Self-hosted comic library manager for organizing, reading, and tracking comic collections. Built for large libraries (2000+ series, 2600+ issues).
 
@@ -64,14 +64,20 @@ Self-hosted comic library manager for organizing, reading, and tracking comic co
 - `src/components/longbox/stat-progress-bar.tsx` - Reusable progress bar for analytics
 - `src/components/longbox/reading-sparkline.tsx` - Recharts reading pace sparkline
 - `src/components/longbox/publisher-chart.tsx` - Recharts horizontal bar chart
+- `src/actions/requests.ts` - Request server actions (create, batch, delete + activity logging + webhooks)
+- `src/app/(dashboard)/requests/` - Requests page (stat cards, filters, card list)
+- `src/lib/webhooks.ts` - Webhook dispatch utility (fire-and-forget, n8n integration)
+- `src/components/longbox/request-filters.tsx` - Status filter pills for requests page
+- `src/components/longbox/request-missing-button.tsx` - Request All Missing + per-issue request buttons
+- `src/components/longbox/queue-actions.tsx` - Request delete button (toast notifications)
 - `src/types/longbox.ts` - Shared TypeScript types (SmartRules, Condition, FieldDefinition, etc.)
-- `src/middleware.ts` - Auth middleware
-
-### Planned (new paths for upcoming features)
-- `src/app/api/opds/v1.2/` - OPDS feed endpoints for Mihon
-- `src/app/api/webhooks/` - Outbound webhook dispatch
-- `src/lib/opds.ts` - OPDS Atom XML builder helpers
-- `src/lib/webhooks.ts` - Webhook dispatch utility (n8n integration)
+- `src/proxy.ts` - Auth proxy (Next.js 16 convention, OPDS routes bypassed for Basic Auth)
+- `src/lib/opds.ts` - OPDS 1.2 Atom XML builder (navigation, acquisition, search feeds)
+- `src/lib/opds-auth.ts` - OPDS HTTP Basic Auth validator (bcrypt against users table)
+- `src/app/api/opds/v1.2/` - OPDS feed endpoints (catalog, series, publishers, new, reading, collections, search)
+- `src/app/api/read/[id]/download/` - File download endpoint (streaming CBZ/CBR for OPDS)
+- `src/actions/discovery.ts` - checkComicVineConfigured() server action
+- `public/manifest.json` - PWA manifest (standalone, dark theme)
 
 ## Code Conventions
 - Path alias: `@/*` maps to `./src/*`
@@ -147,20 +153,33 @@ Four server actions in `src/actions/analysis.ts`, each independently Suspense-wr
 3. **Series Completion:** complete/almost/in-progress counts + top 10 almost-complete table (requires ComicVine issue data)
 4. **Reading Stats:** books read/in progress/pages/streak + weekly pace sparkline (Recharts AreaChart, 12 weeks)
 
-### Webhook-Out Pattern (n8n Integration)
-Longbox emits webhooks for external automation. Never fetches/downloads content.
-- Configurable webhook URL in settings
-- Fires on: new request created, scan completed, errors
-- Payload includes enough context for n8n to route (series name, issue number, publisher, ComicVine ID)
+### Request System — Built
+Wishlist/request workflow for missing issues. CRUD in `src/actions/requests.ts`, page at `/requests`.
+- **Request creation:** per-issue (`requestIssueAction`) or batch (`requestAllMissingAction`) from series detail page
+- **Request states:** `draft → requested → searching → fulfilled` (enum: `requestStateEnum`)
+- **Auto-fulfillment:** scanner pipeline (`processFile()`) checks for matching open requests after book insertion, auto-transitions `requested → fulfilled` and updates issue status `wanted → downloaded`
+- **Activity logging:** `request_created`, `request_fulfilled`, `request_deleted` events
+- **Requests page:** stat cards (total/wanted/searching/fulfilled), status filter pills, mobile-friendly card layout, per-row delete
+- **Series detail integration:** "Request N Missing" batch button in managed context action bar, per-issue request button (hover overlay) on issue grid cards, "WANTED" badge on requested issues
+- **Webhook dispatch:** fires on create and fulfill events
+
+### Webhook-Out Pattern (n8n Integration) — Built
+Longbox emits webhooks for external automation via `src/lib/webhooks.ts`. Fire-and-forget pattern.
+- Configurable webhook URL in Settings > Configuration (stored in `appSettings` key: `webhook_url`)
+- Fires on: `request_created`, `request_fulfilled`, `scan_completed`, `error`
+- Payload includes: event type, timestamp, series name, issue number, publisher, ComicVine ID
+- 10s timeout, errors logged but never thrown
 - n8n handles routing to Telegram/email/Notion/Kapowarr
 
-### OPDS Feed (Mihon Integration)
-OPDS 1.2 Atom XML feeds for external reader apps:
-- Navigation feeds for browsing (by series, recent, reading list)
-- Acquisition feeds with download links to CBZ/CBR files
-- HTTP Basic Auth against Longbox user credentials
-- Smart collections can auto-generate OPDS catalog sections
-- Endpoints under `/api/opds/v1.2/` (catalog, series, search, new, reading, download)
+### OPDS Feed (Mihon Integration) — Built
+OPDS 1.2 Atom XML feeds for external reader apps. XML built via template literals in `src/lib/opds.ts`.
+- **Auth:** HTTP Basic Auth validated in each route handler via `src/lib/opds-auth.ts` (bcrypt against users table). Middleware bypasses JWT auth for `/api/opds/` routes.
+- **Navigation feeds:** catalog root, all series (with book counts), publishers (with series counts)
+- **Acquisition feeds:** series books, recently added (50), reading list (user-specific, in-progress), collection books (smart + manual), search results
+- **Search:** OpenSearch description at `/api/opds/v1.2/search`, query param `?q=`, matches title/series/author via ilike
+- **Download:** `/api/read/[id]/download` streams CBZ/CBR files with correct MIME types
+- **Collections:** Smart collections use `buildWhereClause()` from rules engine; manual collections use join table
+- Mihon config: `http://<server>:3000/api/opds/v1.2/catalog` + email:password credentials
 
 ## Integration Points
 
@@ -213,6 +232,11 @@ OPDS 1.2 Atom XML feeds for external reader apps:
 - Triage page (grouped by folder, batch approve/reject, confidence badges)
 - Unified scanner (scan_jobs persistence, replaces old dual-queue system)
 - useScanStatus() hook + REST polling endpoint
+- Request system (wishlist, auto-fulfillment, webhooks, activity logging)
+- Reader zoom (pinch/pan/double-tap via react-zoom-pan-pinch)
+- OPDS 1.2 feeds (8 route handlers, Basic Auth, search, file download)
+- PWA manifest (standalone, dark theme)
+- Discovery page config-aware empty state
 
 ### ✅ Phase 1: Smart Collections (Complete)
 - [x] Schema: add smart_rules, pinned, icon, sort_preference to collections table
@@ -249,19 +273,29 @@ OPDS 1.2 Atom XML feeds for external reader apps:
 - [x] Analysis: reading stats (books read, pages, streaks, weekly sparkline via Recharts)
 - [x] Sidebar links for Activity and Analysis (both desktop and mobile)
 
-### 🔨 Phase 4: Request System
-- [ ] Wishlist/request board (/requests page)
-- [ ] Series completion gap detection with "Request Missing" action
-- [ ] Request states: wanted → fulfilled (auto-fulfilled by scanner)
-- [ ] Kapowarr folder watch integration
-- [ ] n8n webhook on new requests
-- [ ] Fulfillment notifications
+### ✅ Phase 4: Request System (Complete)
+- [x] Requests page upgraded: stat cards, status filter pills, mobile-friendly card layout
+- [x] Request actions: per-issue + batch "Request All Missing" from series detail page
+- [x] Per-issue request button (hover overlay) on issue grid cards + "WANTED" badge
+- [x] Request states: draft → requested → searching → fulfilled
+- [x] Auto-fulfillment: scanner pipeline checks open requests on book link, transitions to fulfilled
+- [x] Activity logging: request_created, request_fulfilled, request_deleted events + icons in activity feed
+- [x] Webhook dispatch utility (`src/lib/webhooks.ts`) — fires on request create and fulfill
+- [x] Webhook URL configurable in Settings > Configuration (stored in appSettings)
+- [ ] Kapowarr folder watch integration (deferred — requires Kapowarr API)
 
-### 🔨 Phase 5: Reader & External Access
-- [ ] Reader zoom: react-zoom-pan-pinch (pinch/pan/double-tap)
-- [ ] Discovery page fix (diagnose empty state, add default content)
-- [ ] OPDS 1.2 feed for Mihon (7 route handlers + auth)
-- [ ] PWA support (service worker, manifest, offline caching)
+### ✅ Phase 5: Reader & External Access (Complete)
+- [x] Reader zoom: react-zoom-pan-pinch (pinch/pan/double-tap, 4x max, auto-reset on page change)
+- [x] Click-zone navigation disabled when zoomed in (>1.05x)
+- [x] Webtoon mode zoom wraps entire scroll container
+- [x] Discovery page: config-aware empty state (guides to Settings when no API key)
+- [x] OPDS 1.2 feeds: 8 route handlers (catalog, series list, series detail, publishers, new, reading, collections, search)
+- [x] OPDS auth: HTTP Basic Auth against users table (bcrypt validation in route handlers, not middleware)
+- [x] OPDS search: OpenSearch description document + title/series/author search
+- [x] File download endpoint: `/api/read/[id]/download` streams CBZ/CBR files
+- [x] PWA manifest: standalone display, dark theme, Apple Web App meta tags
+- [ ] PWA service worker (deferred — next-pwa has compatibility issues with Next.js 16)
+- [ ] PWA icons need to be created (placeholder directory at `public/icons/`)
 
 ## Gotchas
 - Next.js 16.1: `revalidateTag()` requires 2 args. Use `updateTag()` from `next/cache` instead (single arg)

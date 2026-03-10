@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "mcp__magic__21st_magic_component_inspiration",
+      "Bash(npx next:*)",
+      "Bash(git add:*)",
+      "Bash(git config:*)",
+      "Bash(git diff:*)"
     ]
   }
 }

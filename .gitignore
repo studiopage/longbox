@@ -42,3 +42,12 @@ next-env.d.ts
 
 # cover cache
 /public/cache/
+
+# MCP config (contains API keys)
+.mcp.json
+
+# PWA
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+public/workbox-*.js.map

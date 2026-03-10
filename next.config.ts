@@ -1,33 +1,25 @@
 import type { NextConfig } from "next";
-
+import withSerwistInit from "@serwist/next";
+const withSerwist = withSerwistInit({
+  swSrc: "src/app/sw.ts",
+  swDest: "public/sw.js",
+  disable: process.env.NODE_ENV !== "production",
+  register: true,
+  reloadOnOnline: true,
+  cacheOnNavigation: true,
+});
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
-  // instrumentationHook is enabled by default in Next.js 15+
-  output: 'standalone', // For Docker builds
-
-  // Empty turbopack config to silence warning
+  output: 'standalone',
   turbopack: {},
-
-  // Configure webpack to handle WASM files for node-unrar-js
-  webpack: (config, { isServer }) => {
-    // Handle WASM files
-    config.experiments = {
-      ...config.experiments,
-      asyncWebAssembly: true,
-    };
-
-    // Add rule for WASM files
-    config.module.rules.push({
-      test: /\.wasm$/,
-      type: 'asset/resource',
-    });
-
+  async headers() {
+    return [{ source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }, { key: "Content-Type", value: "application/javascript; charset=utf-8" }] }];
+  },
+  webpack: (config) => {
+    config.experiments = { ...config.experiments, asyncWebAssembly: true };
+    config.module.rules.push({ test: /\.wasm$/, type: 'asset/resource' });
     return config;
   },
-
-  // Server external packages that use native modules or WASM
   serverExternalPackages: ['node-unrar-js'],
 };
-
-export default nextConfig;
+export default withSerwist(nextConfig);
