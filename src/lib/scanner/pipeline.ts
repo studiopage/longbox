@@ -71,6 +71,8 @@ async function resolveSeriesCandidate(
 /**
  * Insert or update a book record in the books table.
  * Uses onConflictDoUpdate on file_path to handle re-scans.
+ * Also propagates metadata (publisher, description, year) up to the series table
+ * if those fields are currently empty.
  */
 async function insertBook(
   signals: ExtractedSignals,
@@ -113,6 +115,45 @@ async function insertBook(
       updated_at: new Date(),
     },
   });
+
+  // Propagate metadata up to series if fields are empty
+  if (ci?.publisher || ci?.summary || ci?.year) {
+    await enrichSeriesFromBook(seriesId, ci);
+  }
+}
+
+/**
+ * Fill in empty series-level fields from book/ComicInfo metadata.
+ * Only updates fields that are currently null/empty — never overwrites existing data.
+ */
+async function enrichSeriesFromBook(
+  seriesId: string,
+  ci: { publisher?: string | null; summary?: string | null; year?: number | null; month?: number | null } | undefined
+): Promise<void> {
+  if (!ci) return;
+
+  try {
+    const s = await db.select({
+      publisher: series.publisher,
+      description: series.description,
+      year: series.year,
+    }).from(series).where(eq(series.id, seriesId)).limit(1);
+
+    if (s.length === 0) return;
+    const current = s[0];
+
+    const updates: Record<string, unknown> = {};
+    if (!current.publisher && ci.publisher) updates.publisher = ci.publisher;
+    if (!current.description && ci.summary) updates.description = ci.summary;
+    if (!current.year && ci.year) updates.year = ci.year;
+
+    if (Object.keys(updates).length > 0) {
+      updates.updated_at = new Date();
+      await db.update(series).set(updates).where(eq(series.id, seriesId));
+    }
+  } catch (err) {
+    console.error('[PIPELINE] Series enrichment failed:', err);
+  }
 }
 
 /**

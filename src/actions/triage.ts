@@ -235,22 +235,53 @@ export async function approveGroup(
       return { success: false, message: 'No pending items found in this folder.' };
     }
 
-    // If no series provided, create a new local series
+    // If no series provided, create a new local series with metadata from ComicInfo
     let targetSeriesId = seriesId;
     if (!targetSeriesId) {
       const firstItem = items[0];
       const seriesName =
         firstItem.suggested_series || path.basename(folderPath) || 'Unknown Series';
 
+      // Extract metadata from first item's ComicInfo signals
+      const firstSignals = (firstItem.signals ?? {}) as Record<string, unknown>;
+      const firstCi = (firstSignals.comicinfo ?? {}) as Record<string, unknown>;
+
       const [newSeries] = await db
         .insert(series)
         .values({
           name: seriesName,
           status: 'ongoing',
+          publisher: (firstCi.publisher as string) || null,
+          description: (firstCi.summary as string) || null,
+          year: typeof firstCi.year === 'number' ? firstCi.year : null,
         })
         .returning();
 
       targetSeriesId = newSeries.id;
+    } else {
+      // Existing series — enrich empty fields from first item's ComicInfo
+      const firstItem = items[0];
+      const firstSignals = (firstItem.signals ?? {}) as Record<string, unknown>;
+      const firstCi = (firstSignals.comicinfo ?? {}) as Record<string, unknown>;
+
+      if (firstCi.publisher || firstCi.summary || firstCi.year) {
+        const [existing] = await db
+          .select({ publisher: series.publisher, description: series.description, year: series.year })
+          .from(series)
+          .where(eq(series.id, targetSeriesId))
+          .limit(1);
+
+        if (existing) {
+          const updates: Record<string, unknown> = {};
+          if (!existing.publisher && firstCi.publisher) updates.publisher = firstCi.publisher as string;
+          if (!existing.description && firstCi.summary) updates.description = firstCi.summary as string;
+          if (!existing.year && typeof firstCi.year === 'number') updates.year = firstCi.year;
+          if (Object.keys(updates).length > 0) {
+            updates.updated_at = new Date();
+            await db.update(series).set(updates).where(eq(series.id, targetSeriesId));
+          }
+        }
+      }
     }
 
     // Process each item: insert into books, mark triage row as approved

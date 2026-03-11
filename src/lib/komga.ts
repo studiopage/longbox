@@ -33,6 +33,14 @@ export function paginated<T>(items: T[], page: number, size: number, totalElemen
   };
 }
 
+/** Book-level metadata used to enrich series when series table fields are empty */
+export interface BookMetadataFallback {
+  publisher?: string | null;
+  summary?: string | null;
+  authors?: string | null;
+  published_date?: Date | null;
+}
+
 /** Format a Longbox series row into a Komga series object */
 export function formatSeries(s: {
   id: string;
@@ -44,13 +52,27 @@ export function formatSeries(s: {
   thumbnail_url?: string | null;
   created_at?: Date | null;
   updated_at?: Date | null;
-}, counts?: { total: number; read: number; inProgress: number }) {
+}, counts?: { total: number; read: number; inProgress: number }, bookFallback?: BookMetadataFallback) {
   const now = new Date().toISOString();
   const created = s.created_at?.toISOString() ?? now;
   const modified = s.updated_at?.toISOString() ?? created;
   const booksCount = counts?.total ?? 0;
   const booksReadCount = counts?.read ?? 0;
   const booksInProgressCount = counts?.inProgress ?? 0;
+
+  // Use series-level data first, fall back to book-level
+  const publisher = s.publisher || bookFallback?.publisher || '';
+  const summary = s.description || bookFallback?.summary || '';
+  const year = s.year || (bookFallback?.published_date ? bookFallback.published_date.getFullYear() : null);
+
+  // Parse authors from book fallback
+  const authors: { name: string; role: string }[] = [];
+  if (bookFallback?.authors) {
+    for (const name of bookFallback.authors.split(',')) {
+      const trimmed = name.trim();
+      if (trimmed) authors.push({ name: trimmed, role: 'writer' });
+    }
+  }
 
   return {
     id: s.id,
@@ -73,11 +95,11 @@ export function formatSeries(s: {
       titleLock: false,
       titleSort: s.name,
       titleSortLock: false,
-      summary: s.description ?? '',
+      summary,
       summaryLock: false,
       readingDirection: 'LEFT_TO_RIGHT',
       readingDirectionLock: false,
-      publisher: s.publisher ?? '',
+      publisher,
       publisherLock: false,
       ageRating: null,
       ageRatingLock: false,
@@ -98,9 +120,9 @@ export function formatSeries(s: {
     booksMetadata: {
       created,
       lastModified: modified,
-      authors: [] as { name: string; role: string }[],
+      authors,
       tags: [] as string[],
-      releaseDate: s.year ? `${s.year}-01-01` : null,
+      releaseDate: year ? `${year}-01-01` : null,
       summary: '',
       summaryNumber: '',
     },
