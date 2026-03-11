@@ -16,8 +16,22 @@ export interface ComicInfoSignal {
   year: number | null;
   writer: string | null;
   penciller: string | null;
+  inker: string | null;
+  colorist: string | null;
+  letterer: string | null;
+  coverArtist: string | null;
+  editor: string | null;
   pageCount: number | null;
   summary: string | null;
+  genre: string | null;
+  tags: string | null;
+  ageRating: string | null;
+  languageISO: string | null;
+  storyArc: string | null;
+  imprint: string | null;
+  volume: number | null;
+  count: number | null;
+  web: string | null;
 }
 
 export interface FolderSignal {
@@ -63,8 +77,22 @@ export async function extractComicInfoSignal(filePath: string): Promise<ComicInf
       year: metadata.year ?? null,
       writer: metadata.writer ?? null,
       penciller: metadata.penciller ?? null,
+      inker: metadata.inker ?? null,
+      colorist: metadata.colorist ?? null,
+      letterer: metadata.letterer ?? null,
+      coverArtist: metadata.coverArtist ?? null,
+      editor: metadata.editor ?? null,
       pageCount: metadata.pageCount ?? null,
       summary: metadata.summary ?? null,
+      genre: metadata.genre ?? null,
+      tags: metadata.tags ?? null,
+      ageRating: metadata.ageRating ?? null,
+      languageISO: metadata.languageISO ?? null,
+      storyArc: metadata.storyArc ?? null,
+      imprint: metadata.imprint ?? null,
+      volume: metadata.volume ?? null,
+      count: metadata.count ?? null,
+      web: metadata.web ?? null,
     };
   } catch (error) {
     console.error(`[SIGNALS] Failed to extract ComicInfo from ${filePath}:`, error);

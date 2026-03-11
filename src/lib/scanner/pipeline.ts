@@ -4,6 +4,7 @@ import { books, series, triageQueue, requests, issues } from '@/db/schema';
 import { eq, and, ilike } from 'drizzle-orm';
 import { extractAllSignals, deriveSeriesName, deriveIssueNumber, type ExtractedSignals } from './signals';
 import { scoreConfidence, type ConfidenceResult } from './confidence';
+import { buildCredits } from '@/lib/metadata/parser';
 import { logEvent } from '@/lib/activity-logger';
 import { fireWebhook } from '@/lib/webhooks';
 
@@ -84,10 +85,27 @@ async function insertBook(
   const fileName = path.basename(signals.filePath);
   const titleFallback = fileName.replace(/\.[^/.]+$/, '');
 
-  const authors = [ci?.writer, ci?.penciller].filter(Boolean).join(', ');
-  const publishedDate = ci?.year ? new Date(ci.year, (ci.year ? 0 : 0), 1) : null;
+  const authors = [ci?.writer, ci?.penciller, ci?.inker, ci?.colorist, ci?.letterer]
+    .filter(Boolean).join(', ');
+  const publishedDate = ci?.year ? new Date(ci.year, 0, 1) : null;
 
-  await db.insert(books).values({
+  // Build structured credits from ComicInfo role fields
+  const credits = ci ? buildCredits({
+    writer: ci.writer ?? undefined,
+    penciller: ci.penciller ?? undefined,
+    inker: ci.inker ?? undefined,
+    colorist: ci.colorist ?? undefined,
+    letterer: ci.letterer ?? undefined,
+    coverArtist: ci.coverArtist ?? undefined,
+    editor: ci.editor ?? undefined,
+  }) : [];
+
+  // Build story arcs array from ComicInfo StoryArc field
+  const storyArcs = ci?.storyArc
+    ? ci.storyArc.split(',').map(arc => arc.trim()).filter(Boolean).map(name => ({ name }))
+    : [];
+
+  const bookValues = {
     series_id: seriesId,
     file_path: signals.filePath,
     file_size: signals.fileSize,
@@ -99,19 +117,14 @@ async function insertBook(
     authors: authors || null,
     published_date: publishedDate,
     match_flags: matchFlags.length > 0 ? matchFlags : null,
-  }).onConflictDoUpdate({
+    credits: credits.length > 0 ? credits : null,
+    story_arcs: storyArcs.length > 0 ? storyArcs : null,
+  };
+
+  await db.insert(books).values(bookValues).onConflictDoUpdate({
     target: books.file_path,
     set: {
-      series_id: seriesId,
-      file_size: signals.fileSize,
-      title: ci?.title || titleFallback,
-      number: issueNumber,
-      page_count: ci?.pageCount || 0,
-      summary: ci?.summary || null,
-      publisher: ci?.publisher || null,
-      authors: authors || null,
-      published_date: publishedDate,
-      match_flags: matchFlags.length > 0 ? matchFlags : null,
+      ...bookValues,
       updated_at: new Date(),
     },
   });

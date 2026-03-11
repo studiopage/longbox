@@ -15,6 +15,8 @@ import {
   AlertTriangle,
   Activity,
   BarChart3,
+  ShieldCheck,
+  Swords,
 } from 'lucide-react';
 import { UserMenu } from './user-menu';
 import { PinnedCollectionsSidebar } from './pinned-collections-sidebar';
@@ -69,6 +71,13 @@ const ROUTES: Array<{
     disabled: false
   },
   {
+    label: 'Story Arcs',
+    icon: Swords,
+    href: '/arcs',
+    matchExact: false,
+    disabled: false
+  },
+  {
     label: 'Triage',
     icon: AlertTriangle,
     href: '/triage',
@@ -86,6 +95,13 @@ const ROUTES: Array<{
     label: 'Analysis',
     icon: BarChart3,
     href: '/analysis',
+    matchExact: false,
+    disabled: false
+  },
+  {
+    label: 'Health',
+    icon: ShieldCheck,
+    href: '/health',
     matchExact: false,
     disabled: false
   },

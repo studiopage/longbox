@@ -1,15 +1,28 @@
 import { describe, it, expect } from 'vitest';
 import { scoreConfidence } from './confidence';
-import type { ExtractedSignals } from './signals';
+import type { ExtractedSignals, ComicInfoSignal } from './signals';
 
-function makeSignals(overrides: Partial<ExtractedSignals> = {}): ExtractedSignals {
+const defaultComicInfo: ComicInfoSignal = {
+  seriesName: null, issueNumber: null, title: null, publisher: null,
+  year: null, writer: null, penciller: null, inker: null, colorist: null,
+  letterer: null, coverArtist: null, editor: null, pageCount: null,
+  summary: null, genre: null, tags: null, ageRating: null, languageISO: null,
+  storyArc: null, imprint: null, volume: null, count: null, web: null,
+};
+
+type SignalOverrides = Omit<Partial<ExtractedSignals>, 'comicInfo'> & {
+  comicInfo?: Partial<ComicInfoSignal> | null;
+};
+
+function makeSignals(overrides: SignalOverrides = {}): ExtractedSignals {
+  const { comicInfo, ...rest } = overrides;
   return {
-    comicInfo: null,
+    comicInfo: comicInfo ? { ...defaultComicInfo, ...comicInfo } : null,
     folder: { folderName: '', normalizedName: '', depth: 0 },
     filename: { seriesName: null, normalizedName: null, issueNumber: null, year: null },
     filePath: '/library/test.cbz',
     fileSize: 1024,
-    ...overrides,
+    ...rest,
   };
 }
 

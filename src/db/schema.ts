@@ -419,7 +419,44 @@ export const favoriteCharactersRelations = relations(favoriteCharacters, ({ one 
     fields: [favoriteCharacters.user_id],
     references: [users.id],
   }),
-}));export const favoriteSeriesRelations = relations(favoriteSeries, ({ one }) => ({
+}));
+
+// Book Reviews table - User ratings and notes per book
+export const bookReviews = pgTable('book_reviews', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  user_id: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  book_id: uuid('book_id').notNull().references(() => books.id, { onDelete: 'cascade' }),
+  rating: integer('rating'), // 1-5
+  notes: text('notes'),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  unique_user_book_review: uniqueIndex('unique_user_book_review').on(t.user_id, t.book_id),
+}));
+
+export const bookReviewsRelations = relations(bookReviews, ({ one }) => ({
+  user: one(users, { fields: [bookReviews.user_id], references: [users.id] }),
+  book: one(books, { fields: [bookReviews.book_id], references: [books.id] }),
+}));
+
+// Series Preferences table - Per-series reading preferences
+export const seriesPreferences = pgTable('series_preferences', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  user_id: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  series_id: uuid('series_id').notNull().references(() => series.id, { onDelete: 'cascade' }),
+  read_mode: text('read_mode'), // 'standard' | 'rtl' | 'webtoon'
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  unique_user_series_pref: uniqueIndex('unique_user_series_pref').on(t.user_id, t.series_id),
+}));
+
+export const seriesPreferencesRelations = relations(seriesPreferences, ({ one }) => ({
+  user: one(users, { fields: [seriesPreferences.user_id], references: [users.id] }),
+  series: one(series, { fields: [seriesPreferences.series_id], references: [series.id] }),
+}));
+
+export const favoriteSeriesRelations = relations(favoriteSeries, ({ one }) => ({
   user: one(users, {
     fields: [favoriteSeries.user_id],
     references: [users.id],

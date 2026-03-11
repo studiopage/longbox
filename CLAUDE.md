@@ -38,7 +38,7 @@ Self-hosted comic library manager for organizing, reading, and tracking comic co
 - `src/components/longbox/` - Domain components (50+ files)
 - `src/components/ui/` - shadcn/ui base components
 - `src/components/reader/` - Comic reader UI
-- `src/db/schema.ts` - Full DB schema (20 tables, 5 domains: auth, metadata, user features, system, activity)
+- `src/db/schema.ts` - Full DB schema (22 tables, 5 domains: auth, metadata, user features, system, activity)
 - `src/lib/data/` - Data access layer (reading-progress.ts)
 - `src/lib/rules-engine.ts` - Smart collection rule → Drizzle WHERE clause translator
 - `src/lib/field-definitions.ts` - Rule builder field/operator/value definitions (15 fields)
@@ -87,6 +87,11 @@ Self-hosted comic library manager for organizing, reading, and tracking comic co
 - `src/app/api/v1/books/[id]/pages/[page]/raw/` - Komga: serve single page image
 - `src/app/api/v1/books/[id]/thumbnail/` - Komga: book cover image
 - `src/app/api/v1/books/[id]/read-progress/` - Komga: read progress (GET + PATCH)
+- `src/actions/reader-features.ts` - Reader feature server actions (next unread, series prefs, reviews, streaks, story arcs)
+- `src/actions/data-hygiene.ts` - Data hygiene server actions (duplicates, orphans, media validation, consistency/naming audits)
+- `src/app/(dashboard)/health/` - Library health page (media integrity, data consistency, naming audits)
+- `src/app/(dashboard)/arcs/` - Story arc browser page (grouped by arc name)
+- `src/components/longbox/reading-streak-widget.tsx` - Dashboard reading streak widget (4 stat cards)
 - `src/actions/discovery.ts` - checkComicVineConfigured() server action
 - `public/manifest.json` - PWA manifest (standalone, dark theme)
 
@@ -119,6 +124,8 @@ Self-hosted comic library manager for organizing, reading, and tracking comic co
 - `import_queue` renamed to `triage_queue` (triageQueue) with pipeline columns: match_confidence, matched_series_id, signals, status, scan_job_id
 - `books` table gained: `match_flags` (text array) for tracking ["low_confidence", "needs_metadata"]
 - `activity_events` table added (type, message, metadata jsonb, severity, created_at — indexes on created_at and type)
+- `book_reviews` table added (user_id, book_id, rating 1-5, notes text — unique per user+book)
+- `series_preferences` table added (user_id, series_id, read_mode — unique per user+series)
 
 ## Architecture Patterns
 
@@ -273,6 +280,15 @@ Full Komga API implementation at `/api/v1/` so the Komga extension in Mihon can 
 - Self-contained Docker with idempotent SQL migrations on startup
 - PWA manifest (standalone, dark theme)
 - Discovery page config-aware empty state
+- Library health page (media integrity, data consistency, naming convention audits)
+- Data hygiene API endpoints (media validation, consistency/naming audits via /api/v1/hygiene)
+- Reader end-of-book screen (next unread navigation, star rating, series link)
+- Reading streak dashboard widget (day streak, this week, this month, total read)
+- Per-series reading preferences (read mode remembered in DB, fallback hierarchy)
+- Book ratings and notes (1-5 stars + text notes, saved at end of book)
+- Reader page transitions (150ms crossfade between pages)
+- Story arc browser (/arcs page, grouped by arc name from story_arcs jsonb)
+- RAR metadata parser fix (uses shared parseComicInfoFields for all 24 fields)
 
 ### ✅ Phase 1: Smart Collections (Complete)
 - [x] Schema: add smart_rules, pinned, icon, sort_preference to collections table
@@ -345,6 +361,21 @@ Full Komga API implementation at `/api/v1/` so the Komga extension in Mihon can 
 - [x] Glassmorphism auth screens (login + signup with dark green theme, comic-panel crosshatch)
 - [x] Self-contained Docker: idempotent SQL migration runner (`scripts/migrate.mjs`) runs on startup
 - [x] Migration handles: fresh DBs, existing current DBs, and outdated DBs (missing tables + columns)
+
+### ✅ Phase 7: Reader Features & Library Health (Complete)
+- [x] End-of-book screen: overlay at last page with star rating, next unread button, series link
+- [x] Next unread navigation: prefetches next unread in series by numberSort order
+- [x] Per-series reading preferences: read mode persisted in DB (series_preferences table), fallback to localStorage
+- [x] Book ratings & notes: book_reviews table, 1-5 star UI on end-of-book screen
+- [x] Reader page transitions: 150ms opacity crossfade between page changes
+- [x] Reading streak widget: async server component with 4 stat cards (Flame, BookOpen, TrendingUp, Trophy)
+- [x] Story arc browser: /arcs page grouping books by story_arcs jsonb, sorted by arc size
+- [x] Library health page: /health with 3 audit sections (media integrity, data consistency, naming)
+- [x] Media validation: magic bytes check (ZIP/RAR), file existence, zero-byte, format mismatch
+- [x] Data consistency audit: missing titles, zero-size files, zero-page books, series without publisher/year
+- [x] Naming convention audit: non-standard extensions, missing issue numbers, inconsistent series names
+- [x] Health API endpoints: /api/v1/hygiene (validate-media, audit-consistency, audit-naming)
+- [x] RAR metadata parser fix: uses shared parseComicInfoFields() helper for all 24 fields
 
 ## Gotchas
 - Next.js 16.1: `revalidateTag()` requires 2 args. Use `updateTag()` from `next/cache` instead (single arg)

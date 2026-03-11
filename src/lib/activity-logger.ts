@@ -13,7 +13,11 @@ export type ActivityEventType =
   | 'collection_deleted'
   | 'request_created'
   | 'request_fulfilled'
-  | 'request_deleted';
+  | 'request_deleted'
+  | 'series_merged'
+  | 'orphan_cleanup'
+  | 'page_count_backfill'
+  | 'media_validation';
 
 export type ActivitySeverity = 'info' | 'warning' | 'error';
 

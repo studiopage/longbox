@@ -1,8 +1,9 @@
 'use server';
 
 import { db } from '@/db';
-import { books } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { books, read_progress } from '@/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { auth } from '@/lib/auth';
 import { updateReadingProgress, markAsCompleted, resetReadingProgress } from '@/lib/data/reading-progress';
 import { revalidatePath } from 'next/cache';
 import { countPagesInArchive } from '@/lib/metadata/parser';
@@ -20,6 +21,7 @@ export async function getBookInfo(bookId: string) {
         title: true,
         page_count: true,
         file_path: true,
+        series_id: true,
       },
     });
 
@@ -42,12 +44,34 @@ export async function getBookInfo(bookId: string) {
       }
     }
 
+    // Get current reading progress for resume
+    let currentPage = 1;
+    try {
+      const session = await auth();
+      if (session?.user?.id) {
+        const progress = await db.query.read_progress.findFirst({
+          where: and(
+            eq(read_progress.book_id, bookId),
+            eq(read_progress.user_id, session.user.id)
+          ),
+          columns: { page: true, is_completed: true },
+        });
+        if (progress && !progress.is_completed && progress.page > 1) {
+          currentPage = progress.page;
+        }
+      }
+    } catch {
+      // Non-critical — default to page 1
+    }
+
     return {
       success: true,
       book: {
         id: book.id,
         title: book.title,
         totalPages,
+        currentPage,
+        seriesId: book.series_id,
       },
     };
   } catch (error) {

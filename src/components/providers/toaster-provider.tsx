@@ -1,21 +1,20 @@
 'use client';
 
 import { Toaster } from 'sonner';
+import { useTheme } from '@/components/providers/theme-provider';
 
 export function ToasterProvider() {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme !== 'light';
+
   return (
     <Toaster
       position="bottom-right"
       expand={false}
       richColors
       closeButton
-      theme="dark"
+      theme={isDark ? 'dark' : 'light'}
       toastOptions={{
-        style: {
-          background: '#18181b',
-          border: '1px solid #27272a',
-          color: '#fafafa',
-        },
         className: 'font-sans',
       }}
     />

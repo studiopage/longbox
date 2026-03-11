@@ -15,6 +15,8 @@ import {
   AlertTriangle,
   Activity,
   BarChart3,
+  ShieldCheck,
+  Swords,
   Menu,
   X
 } from 'lucide-react';
@@ -63,6 +65,13 @@ const ROUTES: Array<{
     disabled: false
   },
   {
+    label: 'Story Arcs',
+    icon: Swords,
+    href: '/arcs',
+    matchExact: false,
+    disabled: false
+  },
+  {
     label: 'Triage',
     icon: AlertTriangle,
     href: '/triage',
@@ -80,6 +89,13 @@ const ROUTES: Array<{
     label: 'Analysis',
     icon: BarChart3,
     href: '/analysis',
+    matchExact: false,
+    disabled: false
+  },
+  {
+    label: 'Health',
+    icon: ShieldCheck,
+    href: '/health',
     matchExact: false,
     disabled: false
   },

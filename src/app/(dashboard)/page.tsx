@@ -9,6 +9,7 @@ import { GapReport } from '@/components/longbox/gap-report';
 import { RecentlyAdded } from '@/components/longbox/recently-added';
 import { FavoriteCharacters } from '@/components/longbox/favorite-characters';
 import { PinnedCollectionsChips } from '@/components/longbox/pinned-collections-chips';
+import { ReadingStreakWidget } from '@/components/longbox/reading-streak-widget';
 import { seedStarterCollections } from '@/actions/collections';
 import { auth } from '@/lib/auth';
 
@@ -43,6 +44,11 @@ export default async function HomePage() {
 
       {/* Favorite Characters - Quick access to favorites */}
       <FavoriteCharacters />
+
+      {/* Reading Streak */}
+      <Suspense fallback={<div className="h-24 bg-muted rounded animate-pulse" />}>
+        <ReadingStreakWidget />
+      </Suspense>
 
       {/* Stats Overview */}
       <StatsOverview />

@@ -150,7 +150,7 @@ export function formatBook(b: {
   const created = b.created_at?.toISOString() ?? now;
   const modified = b.updated_at?.toISOString() ?? created;
   const numStr = b.number ?? '0';
-  const numSort = parseFloat(numStr) || 0;
+  const numSort = numberSort(numStr);
   const ext = b.file_path.toLowerCase();
   const mediaType = ext.endsWith('.cbr') || ext.endsWith('.rar')
     ? 'application/x-rar-compressed'
@@ -263,6 +263,40 @@ function mapSeriesStatus(status?: string | null): string {
     case 'canceled': return 'ABANDONED';
     default: return 'ONGOING';
   }
+}
+
+/**
+ * Parse a book number string into a sortable numeric value.
+ *
+ * Regular issues sort by their numeric value (e.g. "1" → 1, "0.5" → 0.5).
+ * Annuals sort after all regular issues (e.g. "Annual 1" → 10001).
+ * Specials/one-shots sort after annuals (e.g. "Special" → 20000).
+ * Purely alphabetic strings with no recognized prefix → 99999.
+ */
+export function numberSort(num: string | null | undefined): number {
+  if (!num) return 0;
+
+  const trimmed = num.trim();
+  if (!trimmed) return 0;
+
+  // Check for "Annual N" pattern
+  const annualMatch = trimmed.match(/^annual\s+(\d+\.?\d*)/i);
+  if (annualMatch) {
+    return 10000 + (parseFloat(annualMatch[1]) || 1);
+  }
+
+  // Check for "Special N" or just "Special"
+  const specialMatch = trimmed.match(/^special(?:\s+(\d+\.?\d*))?$/i);
+  if (specialMatch) {
+    return 20000 + (parseFloat(specialMatch[1] ?? '0') || 0);
+  }
+
+  // Try parsing as a plain number (handles "1", "0.5", "001", etc.)
+  const parsed = parseFloat(trimmed);
+  if (!isNaN(parsed)) return parsed;
+
+  // Purely alphabetic / unrecognized → sort last
+  return 99999;
 }
 
 function formatSize(bytes: number): string {

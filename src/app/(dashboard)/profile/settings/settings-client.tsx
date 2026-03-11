@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { UserAvatar } from '@/components/longbox/user-avatar';
+import { ThemeSelector } from '@/components/longbox/theme-selector';
 import { updateUserProfile, updateUserPreferences, changePassword } from '@/actions/auth';
 
 interface ProfileSettingsClientProps {
@@ -61,7 +62,6 @@ export function ProfileSettingsClient({ profile }: ProfileSettingsClientProps) {
   const [readMode, setReadMode] = useState(profile.defaultReadMode || 'standard');
   const [autoScroll, setAutoScroll] = useState(profile.autoScroll || false);
   const [brightness, setBrightness] = useState(profile.defaultBrightness || 100);
-  const [theme, setTheme] = useState(profile.theme || 'dark');
   const [gridSize, setGridSize] = useState(profile.gridSize || 'medium');
 
   // Password change state
@@ -180,7 +180,6 @@ export function ProfileSettingsClient({ profile }: ProfileSettingsClientProps) {
         defaultReadMode: readMode,
         autoScroll,
         defaultBrightness: brightness,
-        theme,
         gridSize,
       });
 
@@ -481,16 +480,7 @@ export function ProfileSettingsClient({ profile }: ProfileSettingsClientProps) {
 
               <div className="space-y-2">
                 <Label>Theme</Label>
-                <Select value={theme} onValueChange={setTheme}>
-                  <SelectTrigger className="bg-secondary border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="dark">Dark</SelectItem>
-                    <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="system">System</SelectItem>
-                  </SelectContent>
-                </Select>
+                <ThemeSelector />
                 <p className="text-xs text-muted-foreground">
                   Application color theme
                 </p>

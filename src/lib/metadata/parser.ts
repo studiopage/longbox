@@ -13,8 +13,101 @@ export interface ComicMetadata {
   writer?: string;
   penciller?: string;
   inker?: string;
+  colorist?: string;
+  letterer?: string;
+  coverArtist?: string;
+  editor?: string;
   publisher?: string;
+  imprint?: string;
+  genre?: string;
+  tags?: string;
+  ageRating?: string;
+  languageISO?: string;
+  storyArc?: string;
+  seriesGroup?: string;
   pageCount?: number;
+  volume?: number;
+  count?: number; // Total issues in series
+  web?: string;
+}
+
+export interface CreditEntry {
+  creator: string;
+  roles: string[];
+}
+
+/**
+ * Build structured credits array from ComicInfo fields.
+ * Returns an array of {creator, roles} for storing in books.credits jsonb.
+ */
+export function buildCredits(metadata: ComicMetadata): CreditEntry[] {
+  const credits: CreditEntry[] = [];
+  const roleMap: Record<string, string | undefined> = {
+    Writer: metadata.writer,
+    Penciller: metadata.penciller,
+    Inker: metadata.inker,
+    Colorist: metadata.colorist,
+    Letterer: metadata.letterer,
+    'Cover Artist': metadata.coverArtist,
+    Editor: metadata.editor,
+  };
+
+  // Group by creator name — a person may have multiple roles
+  const creatorRoles = new Map<string, string[]>();
+
+  for (const [role, value] of Object.entries(roleMap)) {
+    if (!value) continue;
+    // ComicInfo allows comma-separated names per role
+    const names = value.split(',').map(n => n.trim()).filter(Boolean);
+    for (const name of names) {
+      const existing = creatorRoles.get(name);
+      if (existing) {
+        existing.push(role);
+      } else {
+        creatorRoles.set(name, [role]);
+      }
+    }
+  }
+
+  for (const [creator, roles] of creatorRoles) {
+    credits.push({ creator, roles });
+  }
+
+  return credits;
+}
+
+/**
+ * Map raw ComicInfo XML object to typed ComicMetadata.
+ * Handles all standard ComicInfo.xml fields.
+ */
+function parseComicInfoFields(ci: Record<string, string | undefined>): ComicMetadata {
+  return {
+    series: ci.Series,
+    number: ci.Number ? parseFloat(ci.Number) : undefined,
+    title: ci.Title,
+    summary: ci.Summary,
+    year: ci.Year ? parseInt(ci.Year) : undefined,
+    month: ci.Month ? parseInt(ci.Month) : undefined,
+    volume: ci.Volume ? parseInt(ci.Volume) : undefined,
+    count: ci.Count ? parseInt(ci.Count) : undefined,
+    writer: ci.Writer,
+    penciller: ci.Penciller,
+    inker: ci.Inker,
+    colorist: ci.Colorist,
+    letterer: ci.Letterer,
+    coverArtist: ci.CoverArtist,
+    editor: ci.Editor,
+    publisher: ci.Publisher,
+    imprint: ci.Imprint,
+    genre: ci.Genre,
+    tags: ci.Tags,
+    ageRating: ci.AgeRating,
+    languageISO: ci.LanguageISO,
+    storyArc: ci.StoryArc || ci.StoryArcNumber ? ci.StoryArc : undefined,
+    seriesGroup: ci.SeriesGroup,
+    pageCount: ci.PageCount ? parseInt(ci.PageCount) : undefined,
+    web: ci.Web,
+  };
 }
 
 export async function extractComicInfo(filePath: string): Promise<ComicMetadata | null> {
@@ -147,19 +240,7 @@ async function extractComicInfoFromZip(filePath: string): Promise<ComicMetadata 
                 const result = await parseStringPromise(xmlContent, { explicitArray: false });
                 const ci = result.ComicInfo || {};
 
-                const metadata: ComicMetadata = {
-                  series: ci.Series,
-                  number: ci.Number ? parseFloat(ci.Number) : undefined,
-                  title: ci.Title,
-                  summary: ci.Summary,
-                  year: ci.Year ? parseInt(ci.Year) : undefined,
-                  month: ci.Month ? parseInt(ci.Month) : undefined,
-                  writer: ci.Writer,
-                  penciller: ci.Penciller,
-                  inker: ci.Inker,
-                  publisher: ci.Publisher,
-                  pageCount: ci.PageCount ? parseInt(ci.PageCount) : undefined
-                };
+                const metadata: ComicMetadata = parseComicInfoFields(ci);
 
                 zipfile.close();
                 resolve(metadata);
@@ -225,19 +306,7 @@ async function extractComicInfoFromRar(filePath: string): Promise<ComicMetadata 
             const result = await parseStringPromise(xmlContent, { explicitArray: false });
             const ci = result.ComicInfo || {};
 
-            const metadata: ComicMetadata = {
-              series: ci.Series,
-              number: ci.Number ? parseFloat(ci.Number) : undefined,
-              title: ci.Title,
-              summary: ci.Summary,
-              year: ci.Year ? parseInt(ci.Year) : undefined,
-              month: ci.Month ? parseInt(ci.Month) : undefined,
-              writer: ci.Writer,
-              penciller: ci.Penciller,
-              inker: ci.Inker,
-              publisher: ci.Publisher,
-              pageCount: ci.PageCount ? parseInt(ci.PageCount) : undefined
-            };
+            const metadata: ComicMetadata = parseComicInfoFields(ci);
 
             return metadata;
           } catch (parseErr) {
