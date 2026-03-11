@@ -95,10 +95,14 @@ export default function ReaderPage({ params }: { params: Promise<{ id: string }>
     }
   }, [id, page, totalPages]);
 
-  // Fullscreen handling
+  // Fullscreen handling — auto-hide controls when entering fullscreen
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const fs = !!document.fullscreenElement;
+      setIsFullscreen(fs);
+      if (fs) {
+        setControlsVisible(false);
+      }
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -200,7 +204,8 @@ export default function ReaderPage({ params }: { params: Promise<{ id: string }>
   }, [router, goNext, goPrev, settingsOpen, colorCorrectionOpen, isFullscreen, toggleFullscreen]);
 
   // Touch/click zone navigation for Standard/RTL modes
-  const handleImageClick = (e: React.MouseEvent) => {
+  // Uses the full viewport, not just the image bounds
+  const handleZoneClick = (e: React.MouseEvent) => {
     if (settings.readMode === 'webtoon') {
       toggleControls();
       return;
@@ -212,13 +217,12 @@ export default function ReaderPage({ params }: { params: Promise<{ id: string }>
       return;
     }
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const width = rect.width;
+    const clickX = e.clientX;
+    const width = window.innerWidth;
 
-    if (clickX < width * 0.3) {
+    if (clickX < width * 0.35) {
       goPrev();
-    } else if (clickX > width * 0.7) {
+    } else if (clickX > width * 0.65) {
       goNext();
     } else {
       toggleControls();
@@ -343,7 +347,8 @@ export default function ReaderPage({ params }: { params: Promise<{ id: string }>
         </TransformWrapper>
       ) : (
         // Standard / RTL Mode - Single page view with zoom
-        <div className="relative w-full h-full flex items-center justify-center cursor-pointer">
+        // Click zones cover the full viewport for easy tap navigation
+        <div className="relative w-full h-full" onClick={handleZoneClick}>
           <TransformWrapper
             key={page}
             initialScale={1}
@@ -356,17 +361,26 @@ export default function ReaderPage({ params }: { params: Promise<{ id: string }>
             }}
           >
             <TransformComponent
-              wrapperStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              contentStyle={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              wrapperStyle={{
+                width: '100%',
+                height: '100%',
+              }}
+              contentStyle={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
               <img
                 src={`/api/read/${id}/${page}`}
                 alt={`Page ${page}`}
-                className="max-h-screen max-w-full object-contain select-none"
+                className="h-full w-full object-contain select-none"
                 style={imageStyle}
                 onLoad={() => setLoading(false)}
                 onError={() => setLoading(false)}
-                onClick={handleImageClick}
+                draggable={false}
               />
             </TransformComponent>
           </TransformWrapper>
