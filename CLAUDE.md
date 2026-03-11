@@ -71,11 +71,22 @@ Self-hosted comic library manager for organizing, reading, and tracking comic co
 - `src/components/longbox/request-missing-button.tsx` - Request All Missing + per-issue request buttons
 - `src/components/longbox/queue-actions.tsx` - Request delete button (toast notifications)
 - `src/types/longbox.ts` - Shared TypeScript types (SmartRules, Condition, FieldDefinition, etc.)
-- `src/proxy.ts` - Auth proxy (Next.js 16 convention, OPDS routes bypassed for Basic Auth)
+- `src/proxy.ts` - Auth proxy (Next.js 16 convention, OPDS + Komga routes bypassed for Basic Auth)
 - `src/lib/opds.ts` - OPDS 1.2 Atom XML builder (navigation, acquisition, search feeds)
-- `src/lib/opds-auth.ts` - OPDS HTTP Basic Auth validator (bcrypt against users table)
+- `src/lib/opds-auth.ts` - OPDS/Komga HTTP Basic Auth validator (bcrypt against users table, email + name fallback)
 - `src/app/api/opds/v1.2/` - OPDS feed endpoints (catalog, series, publishers, new, reading, collections, search)
 - `src/app/api/read/[id]/download/` - File download endpoint (streaming CBZ/CBR for OPDS)
+- `src/lib/komga.ts` - Komga API response formatters (series, book, library, pagination)
+- `src/app/api/v1/libraries/` - Komga: list libraries (single Longbox library)
+- `src/app/api/v1/series/` - Komga: browse/search series (paginated)
+- `src/app/api/v1/series/[id]/` - Komga: series detail with book counts
+- `src/app/api/v1/series/[id]/books/` - Komga: list books in series (paginated)
+- `src/app/api/v1/series/[id]/thumbnail/` - Komga: series cover image
+- `src/app/api/v1/books/[id]/` - Komga: book detail with read progress
+- `src/app/api/v1/books/[id]/pages/` - Komga: page list for a book
+- `src/app/api/v1/books/[id]/pages/[page]/raw/` - Komga: serve single page image
+- `src/app/api/v1/books/[id]/thumbnail/` - Komga: book cover image
+- `src/app/api/v1/books/[id]/read-progress/` - Komga: read progress (GET + PATCH)
 - `src/actions/discovery.ts` - checkComicVineConfigured() server action
 - `public/manifest.json` - PWA manifest (standalone, dark theme)
 
@@ -173,13 +184,33 @@ Longbox emits webhooks for external automation via `src/lib/webhooks.ts`. Fire-a
 
 ### OPDS Feed (Mihon Integration) — Built
 OPDS 1.2 Atom XML feeds for external reader apps. XML built via template literals in `src/lib/opds.ts`.
-- **Auth:** HTTP Basic Auth validated in each route handler via `src/lib/opds-auth.ts` (bcrypt against users table). Middleware bypasses JWT auth for `/api/opds/` routes.
+- **Auth:** HTTP Basic Auth validated in each route handler via `src/lib/opds-auth.ts` (bcrypt against users table, with name fallback). Proxy bypasses JWT auth for `/api/opds/` routes.
 - **Navigation feeds:** catalog root, all series (with book counts), publishers (with series counts)
 - **Acquisition feeds:** series books, recently added (50), reading list (user-specific, in-progress), collection books (smart + manual), search results
 - **Search:** OpenSearch description at `/api/opds/v1.2/search`, query param `?q=`, matches title/series/author via ilike
 - **Download:** `/api/read/[id]/download` streams CBZ/CBR files with correct MIME types
 - **Collections:** Smart collections use `buildWhereClause()` from rules engine; manual collections use join table
-- Mihon config: `http://<server>:3000/api/opds/v1.2/catalog` + email:password credentials
+- **Settings UI:** OPDS connection info card in Configuration tab with copyable URLs and Mihon setup instructions
+- Mihon OPDS config: `http://<server>:3000/api/opds/v1.2/catalog` + email:password credentials
+
+### Komga-Compatible API (Mihon Komga Extension) — Built
+Full Komga API implementation at `/api/v1/` so the Komga extension in Mihon can browse, read, and sync progress.
+- **Auth:** Same HTTP Basic Auth as OPDS (`validateOPDSAuth`). Proxy bypasses JWT for `/api/v1/` routes.
+- **Response format:** Matches Komga's JSON shapes — paginated series/books, metadata objects, read progress
+- **Helpers:** `src/lib/komga.ts` provides `formatSeries()`, `formatBook()`, `formatLibrary()`, `paginated()` formatters
+- **Endpoints (11 total):**
+  - `GET /api/v1/libraries` — single Longbox library
+  - `GET /api/v1/series` — paginated series list with `?search=`, `?page=`, `?size=`
+  - `GET /api/v1/series/:id` — series detail with book/read/in-progress counts
+  - `GET /api/v1/series/:id/books` — paginated books in series with read progress
+  - `GET /api/v1/series/:id/thumbnail` — series cover (from first book, uses cover cache)
+  - `GET /api/v1/books/:id` — book detail with metadata and read progress
+  - `GET /api/v1/books/:id/pages` — page list (number, fileName, mediaType)
+  - `GET /api/v1/books/:id/pages/:page/raw` — raw page image (CBZ via yauzl, CBR via node-unrar-js)
+  - `GET /api/v1/books/:id/thumbnail` — book cover image (uses cover cache)
+  - `GET /api/v1/books/:id/read-progress` — fetch progress
+  - `PATCH /api/v1/books/:id/read-progress` — write progress back (upsert)
+- Mihon Komga config: `http://<server>:3000` + email:password credentials
 
 ## Integration Points
 
@@ -208,8 +239,9 @@ OPDS 1.2 Atom XML feeds for external reader apps. XML built via template literal
 
 ### Mihon (External Reader)
 - Android comic reader app (Tachiyomi fork)
-- Connects via OPDS 1.2 catalog feed
-- User configures: `http://<server-ip>:3000/api/opds/v1.2/catalog` + credentials
+- **Komga extension (recommended):** `http://<server-ip>:3000` + email:password — full browsing, page reading, progress sync
+- **OPDS extension (alternative):** `http://<server-ip>:3000/api/opds/v1.2/catalog` + email:password — file download only
+- Both use HTTP Basic Auth against Longbox users table
 
 ## Feature Roadmap
 
@@ -235,6 +267,10 @@ OPDS 1.2 Atom XML feeds for external reader apps. XML built via template literal
 - Request system (wishlist, auto-fulfillment, webhooks, activity logging)
 - Reader zoom (pinch/pan/double-tap via react-zoom-pan-pinch)
 - OPDS 1.2 feeds (8 route handlers, Basic Auth, search, file download)
+- OPDS connection info card in Settings (copyable URLs, Mihon setup instructions)
+- Komga-compatible API (11 endpoints at /api/v1/, series/books/pages/thumbnails/read-progress)
+- Glassmorphism login/signup screens (dark green theme, comic-panel crosshatch)
+- Self-contained Docker with idempotent SQL migrations on startup
 - PWA manifest (standalone, dark theme)
 - Discovery page config-aware empty state
 
@@ -297,6 +333,19 @@ OPDS 1.2 Atom XML feeds for external reader apps. XML built via template literal
 - [ ] PWA service worker (deferred — next-pwa has compatibility issues with Next.js 16)
 - [ ] PWA icons need to be created (placeholder directory at `public/icons/`)
 
+### ✅ Phase 6: Komga API & Polish (Complete)
+- [x] Komga-compatible API: 11 endpoints at `/api/v1/` matching Komga's response shapes
+- [x] Series browsing + search with paginated responses
+- [x] Book detail, page list, raw page image serving (CBZ/CBR)
+- [x] Series + book thumbnail endpoints (reuse cover cache pipeline)
+- [x] Read progress sync (GET + PATCH) for Mihon Komga extension
+- [x] Proxy updated to bypass JWT for `/api/v1/` routes
+- [x] OPDS auth enhanced: name fallback lookup + diagnostic logging
+- [x] OPDS connection info card in Settings > Configuration (copyable URLs, clipboard fallback for HTTP)
+- [x] Glassmorphism auth screens (login + signup with dark green theme, comic-panel crosshatch)
+- [x] Self-contained Docker: idempotent SQL migration runner (`scripts/migrate.mjs`) runs on startup
+- [x] Migration handles: fresh DBs, existing current DBs, and outdated DBs (missing tables + columns)
+
 ## Gotchas
 - Next.js 16.1: `revalidateTag()` requires 2 args. Use `updateTag()` from `next/cache` instead (single arg)
 - node-unrar-js requires WASM support - configured in next.config.ts webpack config
@@ -306,4 +355,6 @@ OPDS 1.2 Atom XML feeds for external reader apps. XML built via template literal
 - ComicVine API key is stored in DB (Settings > Configuration), NOT in .env
 - Library path: single source of truth is `appSettings` table (key: `library_path`), not env vars
 - Reusable cards: `TriageGroupCard` for triage page groups
+- Docker migrations: `scripts/migrate.mjs` runs idempotent SQL on startup via `docker-entrypoint.sh`. Only needs `postgres` driver (~400KB). Handles CREATE TYPE/TABLE/INDEX IF NOT EXISTS, ADD COLUMN IF NOT EXISTS, and constraint checks.
+- OPDS/Komga auth requires a password-based account. OAuth-only users (GitHub login) have no password hash and will fail Basic Auth.
 - No test suite exists yet
