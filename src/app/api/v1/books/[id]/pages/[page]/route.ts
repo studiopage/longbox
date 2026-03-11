@@ -15,7 +15,7 @@ export async function GET(
   if (auth instanceof NextResponse) return auth;
 
   const { id, page } = await params;
-  const pageIndex = parseInt(page) - 1;
+  const pageIndex = parseInt(page) - 1; // Komga uses 1-indexed pages
 
   const book = await db.query.books.findFirst({
     where: eq(books.id, id),
