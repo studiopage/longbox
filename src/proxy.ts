@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 const publicRoutes = ['/login', '/signup', '/api/auth'];
 
 // Routes that are always accessible (static assets, etc.)
-const alwaysAccessible = ['/_next', '/favicon.ico', '/api/auth', '/api/opds'];
+const alwaysAccessible = ['/_next', '/favicon.ico', '/api/auth', '/api/opds', '/api/v1'];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
