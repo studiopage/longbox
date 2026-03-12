@@ -105,6 +105,17 @@ async function insertBook(
     ? ci.storyArc.split(',').map(arc => arc.trim()).filter(Boolean).map(name => ({ name }))
     : [];
 
+  // determine publisher: prefer ComicInfo but fall back to existing series value
+  let seriesPublisher: string | null = null;
+  if (seriesId) {
+    const [s] = await db
+      .select({ publisher: series.publisher })
+      .from(series)
+      .where(eq(series.id, seriesId))
+      .limit(1);
+    seriesPublisher = s?.publisher || null;
+  }
+
   const bookValues = {
     series_id: seriesId,
     file_path: signals.filePath,
@@ -113,7 +124,7 @@ async function insertBook(
     number: issueNumber,
     page_count: ci?.pageCount || 0,
     summary: ci?.summary || null,
-    publisher: ci?.publisher || null,
+    publisher: ci?.publisher || seriesPublisher || null,
     authors: authors || null,
     published_date: publishedDate,
     match_flags: matchFlags.length > 0 ? matchFlags : null,

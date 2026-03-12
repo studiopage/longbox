@@ -57,9 +57,21 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // now backfill books that still lack a publisher but belong to a series that has one
+  const result = await db.execute(sql`
+    UPDATE books
+    SET publisher = s.publisher
+    FROM series s
+    WHERE books.series_id = s.id
+      AND books.publisher IS NULL
+      AND s.publisher IS NOT NULL
+  `);
+  const booksUpdated = result.rowCount || 0;
+
   return NextResponse.json({
-    message: `Backfilled ${updated} series out of ${emptySeries.length} with missing metadata`,
-    updated,
-    total: emptySeries.length,
+    message: `Backfilled ${updated} series; updated ${booksUpdated} books with missing publisher`,
+    updatedSeries: updated,
+    totalSeries: emptySeries.length,
+    updatedBooks: booksUpdated,
   });
 }

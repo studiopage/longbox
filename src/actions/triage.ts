@@ -22,6 +22,8 @@ export interface TriageGroup {
   items: TriageItem[];
   suggestedSeriesId: string | null;
   suggestedSeriesName: string | null;
+  // publisher of the suggested or matched series if known
+  suggestedSeriesPublisher?: string | null;
   avgConfidence: number;
 }
 
@@ -35,6 +37,8 @@ export interface TriageItem {
   matchConfidence: number;
   matchedSeriesId: string | null;
   matchedSeriesName: string | null;
+  // publisher pulled from the matched series row, if any
+  matchedSeriesPublisher?: string | null;
   signals: Record<string, unknown> | null;
   status: string;
   createdAt: Date | null;
@@ -63,20 +67,7 @@ export async function getTriageItems(): Promise<TriageGroup[]> {
       status: triageQueue.status,
       createdAt: triageQueue.created_at,
       seriesName: series.name,
-    })
-    .from(triageQueue)
-    .leftJoin(series, eq(triageQueue.matched_series_id, series.id))
-    .where(eq(triageQueue.status, 'pending'))
-    .orderBy(desc(triageQueue.created_at));
-
-  // Group by parent folder path
-  const groupMap = new Map<string, TriageItem[]>();
-
-  for (const row of rows) {
-    const folderPath = path.dirname(row.filePath);
-    const item: TriageItem = {
-      id: row.id,
-      filePath: row.filePath,
+      seriesPublisher: series.publisher,
       fileSize: row.fileSize,
       suggestedSeries: row.suggestedSeries,
       suggestedTitle: row.suggestedTitle,
@@ -84,6 +75,7 @@ export async function getTriageItems(): Promise<TriageGroup[]> {
       matchConfidence: row.matchConfidence ?? 0,
       matchedSeriesId: row.matchedSeriesId,
       matchedSeriesName: row.seriesName,
+      matchedSeriesPublisher: row.seriesPublisher,
       signals: row.signals as Record<string, unknown> | null,
       status: row.status,
       createdAt: row.createdAt,
@@ -134,6 +126,11 @@ export async function getTriageItems(): Promise<TriageGroup[]> {
           suggestedSeriesName = seriesNameMap.get(sid) ?? null;
         }
       }
+      // grab publisher from any item that had this series id (first one)
+      const matchItem = items.find(i => i.matchedSeriesId === suggestedSeriesId);
+      if (matchItem) {
+        suggestedSeriesPublisher = matchItem.matchedSeriesPublisher ?? null;
+      }
     } else {
       // Fall back to the most common suggested_series text
       const nameCounts = new Map<string, number>();
@@ -152,6 +149,7 @@ export async function getTriageItems(): Promise<TriageGroup[]> {
           suggestedSeriesName = name;
         }
       }
+      // publisher remains null in this case
     }
 
     groups.push({
@@ -284,6 +282,17 @@ export async function approveGroup(
       }
     }
 
+    // when linking to an existing series, grab its publisher to use as fallback
+    let seriesPublisher: string | null = null;
+    if (targetSeriesId) {
+      const [ser] = await db
+        .select({ publisher: series.publisher })
+        .from(series)
+        .where(eq(series.id, targetSeriesId))
+        .limit(1);
+      seriesPublisher = ser?.publisher || null;
+    }
+
     // Process each item: insert into books, mark triage row as approved
     for (const item of items) {
       const signals = (item.signals ?? {}) as Record<string, unknown>;
@@ -294,7 +303,7 @@ export async function approveGroup(
         (ci.title as string) ||
         path.basename(item.file_path, path.extname(item.file_path));
       const number = (item.suggested_number as string) || (ci.number as string) || null;
-      const publisher = (ci.publisher as string) || null;
+      const publisher = (ci.publisher as string) || seriesPublisher || null;
       const authors =
         [ci.writer, ci.penciller].filter(Boolean).join(', ') || null;
       const pageCount =
@@ -410,12 +419,23 @@ export async function approveFile(
     const signals = (item.signals ?? {}) as Record<string, unknown>;
     const ci = (signals.comicinfo ?? {}) as Record<string, unknown>;
 
+    // get existing series publisher for fallback
+    let seriesPublisher: string | null = null;
+    if (seriesId) {
+      const [ser] = await db
+        .select({ publisher: series.publisher })
+        .from(series)
+        .where(eq(series.id, seriesId))
+        .limit(1);
+      seriesPublisher = ser?.publisher || null;
+    }
+
     const title =
       (item.suggested_title as string) ||
       (ci.title as string) ||
       path.basename(item.file_path, path.extname(item.file_path));
     const number = (item.suggested_number as string) || (ci.number as string) || null;
-    const publisher = (ci.publisher as string) || null;
+    const publisher = (ci.publisher as string) || seriesPublisher || null;
     const authors =
       [ci.writer, ci.penciller].filter(Boolean).join(', ') || null;
     const pageCount =
