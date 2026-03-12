@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   }
 
   // now backfill books that still lack a publisher but belong to a series that has one
-  const result = await db.execute(sql`
+  await db.execute(sql`
     UPDATE books
     SET publisher = s.publisher
     FROM series s
@@ -66,12 +66,10 @@ export async function POST(request: NextRequest) {
       AND books.publisher IS NULL
       AND s.publisher IS NOT NULL
   `);
-  const booksUpdated = result.rowCount || 0;
 
   return NextResponse.json({
-    message: `Backfilled ${updated} series; updated ${booksUpdated} books with missing publisher`,
+    message: `Backfilled ${updated} series; publisher data propagated to books`,
     updatedSeries: updated,
     totalSeries: emptySeries.length,
-    updatedBooks: booksUpdated,
   });
 }
