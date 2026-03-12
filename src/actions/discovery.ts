@@ -47,12 +47,13 @@ export async function fetchMissingComicVineData(): Promise<{
     let updated = 0;
     let errors = 0;
 
-    // Search ComicVine for each series with a delay to respect rate limits
+    // Search ComicVine for each series
+    // Rate limiting is handled internally by searchComicVine() (1 req/sec)
     for (const s of unmatchedSeries) {
       try {
         const results = await searchComicVine(s.name);
         if (results && results.length > 0) {
-          // Pick the first result (best match)
+          // Pick the first result (best match by ComicVine relevance)
           const bestMatch = results[0];
           
           // Update the series with cv_id
@@ -71,9 +72,6 @@ export async function fetchMissingComicVineData(): Promise<{
         console.error(`[Discovery] Failed to fetch CV data for ${s.name}:`, err);
         errors++;
       }
-
-      // Simple rate limiting: 100ms between requests
-      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     return { matched, updated, errors };

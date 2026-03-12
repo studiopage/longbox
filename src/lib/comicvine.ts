@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { getSettings } from '@/actions/settings'; // Import the DB getter
+import { waitForRateLimit } from '@/lib/rate-limiter';
 
 const BASE_URL = 'https://comicvine.gamespot.com/api';
 
@@ -32,6 +33,9 @@ async function getApiKey() {
 export async function browseComicVine(params: BrowseParams) {
   const CV_API_KEY = await getApiKey();
   if (!CV_API_KEY) return [];
+
+  // Respect rate limits before making request
+  await waitForRateLimit('comicvine', 1000);
 
   const page = params.page && params.page > 1 ? params.page : 1;
   const limit = 24;
@@ -81,6 +85,9 @@ export async function browseComicVine(params: BrowseParams) {
 export async function searchComicVine(query: string, limit: number = 10) {
   const CV_API_KEY = await getApiKey();
   if (!CV_API_KEY) return [];
+
+  // Respect rate limits before making request
+  await waitForRateLimit('comicvine', 1000);
 
   const url = `${BASE_URL}/search/?api_key=${CV_API_KEY}&format=json&resources=volume&query=${encodeURIComponent(query)}&limit=${limit}`;
 
