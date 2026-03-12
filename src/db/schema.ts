@@ -78,6 +78,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   favoriteCharacters: many(favoriteCharacters),
   favoriteSeries: many(favoriteSeries),
   readProgress: many(read_progress),
+  arcReadingProgress: many(arc_reading_progress),
 }));
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
@@ -118,6 +119,9 @@ export const series = pgTable('series', {
   cv_id: integer('cv_id'), // ComicVine ID
   metron_id: integer('metron_id'), // Metron ID
   goodreads_id: text('goodreads_id'),
+  oclc_number: text('oclc_number'), // OCLC WorldCat number
+  lccn: text('lccn'), // Library of Congress Control Number
+  dewey_decimal: text('dewey_decimal'), // Dewey Decimal Classification
 
   // Goodreads metrics
   goodreads_rating: real('goodreads_rating'), // 0-5 stars
@@ -243,6 +247,8 @@ export const books = pgTable('books', {
   // External IDs
   metron_id: integer('metron_id'), // Metron Issue ID
   goodreads_id: text('goodreads_id'),
+  oclc_number: text('oclc_number'), // OCLC WorldCat number
+  lccn: text('lccn'), // Library of Congress Control Number
 
   // ISBN/UPC identifiers
   isbn: text('isbn'),
@@ -445,6 +451,66 @@ export const activityEvents = pgTable('activity_events', {
 }, (t) => ({
   createdAtIdx: index('activity_events_created_at_idx').on(t.created_at),
   typeIdx: index('activity_events_type_idx').on(t.type),
+}));
+
+// =====================
+// PHASE 3: ARC READING
+// =====================
+
+// Arc Reading Progress table - Track user progress through story arcs
+export const arc_reading_progress = pgTable('arc_reading_progress', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  arc_name: text('arc_name').notNull(),
+  total_issues: integer('total_issues').default(0),
+  issues_read: integer('issues_read').default(0),
+  last_issue_read: uuid('last_issue_read').references(() => books.id, { onDelete: 'set null' }),
+  arc_completion_pct: real('arc_completion_pct').default(0),
+  started_at: timestamp('started_at').defaultNow(),
+  completed_at: timestamp('completed_at'),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  unique_user_arc: uniqueIndex('unique_user_arc').on(t.user_id, t.arc_name),
+  userIdx: index('arc_reading_progress_user_id_idx').on(t.user_id),
+  arcIdx: index('arc_reading_progress_arc_name_idx').on(t.arc_name),
+  completedIdx: index('arc_reading_progress_completed_idx').on(t.completed_at),
+}));
+
+// Arc Reading Orders table - Optimal reading order for story arcs
+export const arc_reading_orders = pgTable('arc_reading_orders', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  arc_name: text('arc_name').notNull().unique(),
+  book_ids: uuid('book_ids').array().notNull(),
+  issue_numbers: text('issue_numbers').array().notNull(),
+  first_appearance_date: text('first_appearance_date'),
+  completion_date: text('completion_date'),
+  issue_count: integer('issue_count').default(0),
+  series_ids: uuid('series_ids').array().notNull(),
+  source: text('source').default('auto'), // 'auto' | 'metron' | 'manual'
+  confidence: real('confidence').default(0), // 0-100
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  nameIdx: index('arc_reading_orders_name_idx').on(t.arc_name),
+  seriesIdx: index('arc_reading_orders_series_idx').on(t.series_ids),
+}));
+
+// Relations for arc_reading_progress
+export const arc_reading_progressRelations = relations(arc_reading_progress, ({ one }) => ({
+  user: one(users, {
+    fields: [arc_reading_progress.user_id],
+    references: [users.id],
+  }),
+  lastIssue: one(books, {
+    fields: [arc_reading_progress.last_issue_read],
+    references: [books.id],
+  }),
+}));
+
+// Relations for arc_reading_orders
+export const arc_reading_ordersRelations = relations(arc_reading_orders, ({ many }) => ({
+  // Can add relationship to books via book_ids array if needed
 }));
 
 // Relations for collections

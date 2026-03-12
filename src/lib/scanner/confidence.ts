@@ -1,5 +1,6 @@
 import { normalizeSeriesName } from './filename-parser';
 import type { ExtractedSignals } from './signals';
+import { calculateMultiSourceBoost, applyMultiSourceBoost } from './multi-source-confidence';
 
 // =====================
 // Confidence Scorer
@@ -133,4 +134,51 @@ export function scoreConfidence(
   }
 
   return { score, tier, reasons };
+}
+
+/**
+ * Enhanced confidence scoring with multi-source boosting
+ * Phase 3: Applies confidence boost when multiple metadata sources (CV + Metron) agree
+ *
+ * @param baseResult Base confidence result from scoreConfidence()
+ * @param comicVineMatch Whether ComicVine volume was found
+ * @param metronMatch Whether Metron issue was found
+ * @returns Enhanced confidence result with multi-source boost applied
+ */
+export function enhanceConfidenceWithMultiSource(
+  baseResult: ConfidenceResult,
+  comicVineMatch: boolean = false,
+  metronMatch: boolean = false
+): ConfidenceResult {
+  // Extract signal sources from reasons
+  const signalSources: string[] = [];
+  if (baseResult.reasons.some(r => r.includes('ComicInfo'))) signalSources.push('comicinfo');
+  if (baseResult.reasons.some(r => r.includes('Folder'))) signalSources.push('folder');
+  if (baseResult.reasons.some(r => r.includes('Filename'))) signalSources.push('filename');
+
+  // Calculate multi-source boost
+  const boost = calculateMultiSourceBoost(signalSources, comicVineMatch, metronMatch);
+
+  if (!boost) {
+    return baseResult; // No boost applies
+  }
+
+  // Apply boost to score
+  const enhancedScore = applyMultiSourceBoost(baseResult.score, boost);
+
+  // Recalculate tier based on enhanced score
+  let enhancedTier: ConfidenceTier;
+  if (enhancedScore >= 90) {
+    enhancedTier = 'high';
+  } else if (enhancedScore >= 60) {
+    enhancedTier = 'medium';
+  } else {
+    enhancedTier = 'low';
+  }
+
+  return {
+    score: enhancedScore,
+    tier: enhancedTier,
+    reasons: [...baseResult.reasons, boost.reason],
+  };
 }
