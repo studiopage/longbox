@@ -17,7 +17,8 @@ export type ActivityEventType =
   | 'series_merged'
   | 'orphan_cleanup'
   | 'page_count_backfill'
-  | 'media_validation';
+  | 'media_validation'
+  | 'metadata_enriched';
 
 export type ActivitySeverity = 'info' | 'warning' | 'error';
 

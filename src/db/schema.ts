@@ -117,6 +117,11 @@ export const series = pgTable('series', {
   // External IDs
   cv_id: integer('cv_id'), // ComicVine ID
   metron_id: integer('metron_id'), // Metron ID
+  goodreads_id: text('goodreads_id'),
+
+  // Goodreads metrics
+  goodreads_rating: real('goodreads_rating'), // 0-5 stars
+  goodreads_rating_count: integer('goodreads_rating_count').default(0),
 
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
@@ -237,6 +242,12 @@ export const books = pgTable('books', {
 
   // External IDs
   metron_id: integer('metron_id'), // Metron Issue ID
+  goodreads_id: text('goodreads_id'),
+
+  // ISBN/UPC identifiers
+  isbn: text('isbn'),
+  isbn13: text('isbn13'),
+  upc: text('upc'),
 
   // Enrichment Data (from Metron/other sources)
   credits: jsonb('credits'), // [{creator: "Name", role: ["Writer"]}]
@@ -244,12 +255,17 @@ export const books = pgTable('books', {
   main_characters: jsonb('main_characters'), // [{name: "Character Name", id: 4005, url: "..."}]
   match_flags: text('match_flags').array(), // ["low_confidence", "needs_metadata"]
 
+  // Goodreads metrics
+  goodreads_rating: real('goodreads_rating'), // 0-5 stars
+  goodreads_rating_count: integer('goodreads_rating_count').default(0),
+  goodreads_reviews_count: integer('goodreads_reviews_count').default(0),
+
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
 });
 
 // Relations for books
-export const booksRelations = relations(books, ({ one }) => ({
+export const booksRelations = relations(books, ({ one, many }) => ({
   series: one(series, {
     fields: [books.series_id],
     references: [series.id],
@@ -257,6 +273,58 @@ export const booksRelations = relations(books, ({ one }) => ({
   readProgress: one(read_progress, {
     fields: [books.id],
     references: [read_progress.book_id],
+  }),
+  characters: many(book_characters),
+}));
+
+// Characters master table - Phase 2: Normalized character data
+export const characters = pgTable('characters', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  cv_id: integer('cv_id').unique(),
+  metron_id: integer('metron_id'),
+  name: text('name').notNull(),
+  aliases: text('aliases').array(), // Alternative names
+  description: text('description'),
+  image_url: text('image_url'),
+  publisher: text('publisher'),
+  popularity_score: real('popularity_score').default(0),
+  appearances_count: integer('appearances_count').default(0),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
+}, (t) => ({
+  cvIdIdx: index('characters_cv_id_idx').on(t.cv_id),
+  nameIdx: index('characters_name_idx').on(t.name),
+}));
+
+// Book-Character junction table - Phase 2: Many-to-many relationship
+export const book_characters = pgTable('book_characters', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  book_id: uuid('book_id').notNull().references(() => books.id, { onDelete: 'cascade' }),
+  character_id: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+  role: text('role'),
+  appearance_count: integer('appearance_count').default(1),
+  is_main: boolean('is_main').default(false),
+  created_at: timestamp('created_at').defaultNow(),
+}, (t) => ({
+  unique: uniqueIndex('unique_book_character').on(t.book_id, t.character_id),
+  bookIdx: index('book_characters_book_id_idx').on(t.book_id),
+  charIdx: index('book_characters_character_id_idx').on(t.character_id),
+}));
+
+// Relations for characters
+export const charactersRelations = relations(characters, ({ many }) => ({
+  books: many(book_characters),
+}));
+
+// Relations for book_characters
+export const book_charactersRelations = relations(book_characters, ({ one }) => ({
+  book: one(books, {
+    fields: [book_characters.book_id],
+    references: [books.id],
+  }),
+  character: one(characters, {
+    fields: [book_characters.character_id],
+    references: [characters.id],
   }),
 }));
 
