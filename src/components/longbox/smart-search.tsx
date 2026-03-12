@@ -79,9 +79,9 @@ export function SmartSearch() {
         {/* CRITICAL FIX: shouldFilter={false} prevents cmdk from hiding your footer */}
         <Command
             shouldFilter={false}
-            className="!bg-transparent border-none shadow-none h-full overflow-visible [&>*]:!bg-transparent"
+            className="!bg-transparent border-none shadow-none h-full overflow-visible"
         >
-            <div className="flex items-center w-full h-full relative">
+            <div className="flex items-center w-full h-full relative bg-transparent">
                 <CommandInput 
                     ref={inputRef}
                     placeholder="Search comics or series..." 

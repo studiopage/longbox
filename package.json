@@ -9,7 +9,10 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "enrich": "node scripts/enrich-metadata.mjs",
+    "enrich:arcs": "node scripts/enrich-metadata.mjs --arcs-only",
+    "enrich:ratings": "node scripts/enrich-metadata.mjs --ratings-only"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",
