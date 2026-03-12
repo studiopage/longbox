@@ -153,6 +153,8 @@ export default function HealthPage() {
 
   const [namingStatus, setNamingStatus] = useState<AuditStatus>('idle');
   const [namingResult, setNamingResult] = useState<NamingResult | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
+  const [fetchingCV, setFetchingCV] = useState(false);
 
   const runMediaAudit = async () => {
     setMediaStatus('running');
@@ -235,6 +237,41 @@ export default function HealthPage() {
       console.error('Backfill failed:', error);
     } finally {
       setConsistencyFixing(false);
+    }
+  };
+
+  const backfillMetadata = async () => {
+    setBackfilling(true);
+    try {
+      // Call the API endpoint directly since it's admin-only
+      const response = await fetch('/api/v1/backfill', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + btoa(localStorage.getItem('basicAuth') || ':'),
+        },
+      });
+      if (response.ok) {
+        // Re-run consistency audit to show updated numbers
+        await runConsistencyAudit();
+      }
+    } catch (error) {
+      console.error('Backfill metadata failed:', error);
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
+  const fetchMissingComicVine = async () => {
+    setFetchingCV(true);
+    try {
+      const { fetchMissingComicVineData } = await import('@/actions/discovery');
+      await fetchMissingComicVineData();
+      // Re-run consistency audit to show updated numbers
+      await runConsistencyAudit();
+    } catch (error) {
+      console.error('ComicVine fetch failed:', error);
+    } finally {
+      setFetchingCV(false);
     }
   };
 
@@ -411,6 +448,34 @@ export default function HealthPage() {
                     )}
                     Backfill Page Counts ({consistencyResult.stats.booksZeroPages})
                   </button>
+                )}
+                {(consistencyResult.stats.seriesWithoutPublisher > 0 || consistencyResult.stats.seriesWithoutYear > 0) && (
+                  <>
+                    <button
+                      onClick={backfillMetadata}
+                      disabled={backfilling}
+                      className="flex items-center gap-2 bg-primary/10 text-primary hover:bg-primary/20 px-4 py-2 rounded font-medium text-sm transition-colors disabled:opacity-50"
+                    >
+                      {backfilling ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4" />
+                      )}
+                      Backfill Series Metadata
+                    </button>
+                    <button
+                      onClick={fetchMissingComicVine}
+                      disabled={fetchingCV}
+                      className="flex items-center gap-2 bg-blue-500/10 text-blue-500/70 hover:bg-blue-500/20 px-4 py-2 rounded font-medium text-sm transition-colors disabled:opacity-50"
+                    >
+                      {fetchingCV ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4" />
+                      )}
+                      Fetch ComicVine Data
+                    </button>
+                  </>
                 )}
               </div>
               {consistencyResult.issues.length > 0 && (
