@@ -176,13 +176,13 @@ export function TriageGroupCard({ group }: { group: TriageGroup }) {
                   {/* ComicInfo signal summary */}
                   <div className="truncate">
                     <strong>CI:</strong>{' '}
-                    {item.signals.comicInfo ? (
+                    {(item.signals as any).comicInfo ? (
                       <>
-                        {item.signals.comicInfo.seriesName ?? <em>no series</em>}
-                        {item.signals.comicInfo.issueNumber && ` #${item.signals.comicInfo.issueNumber}`}
-                        {item.signals.comicInfo.title && ` – ${item.signals.comicInfo.title}`}
-                        {item.signals.comicInfo.year && ` (${item.signals.comicInfo.year})`}
-                        {item.signals.comicInfo.publisher && ` — ${item.signals.comicInfo.publisher}`}
+                        {(item.signals as any).comicInfo.seriesName ?? <em>no series</em>}
+                        {(item.signals as any).comicInfo.issueNumber && ` #${(item.signals as any).comicInfo.issueNumber}`}
+                        {(item.signals as any).comicInfo.title && ` – ${(item.signals as any).comicInfo.title}`}
+                        {(item.signals as any).comicInfo.year && ` (${(item.signals as any).comicInfo.year})`}
+                        {(item.signals as any).comicInfo.publisher && ` — ${(item.signals as any).comicInfo.publisher}`}
                       </>
                     ) : (
                       <em>none</em>
@@ -193,9 +193,9 @@ export function TriageGroupCard({ group }: { group: TriageGroup }) {
                     <strong>Size:</strong> {formatBytes(item.fileSize)}
                   </div>
 
-                  {item.signals.comicInfo?.publisher && (
+                  {(item.signals as any).comicInfo?.publisher && (
                     <div className="truncate">
-                      <strong>Publisher:</strong> {item.signals.comicInfo.publisher}
+                      <strong>Publisher:</strong> {(item.signals as any).comicInfo.publisher}
                     </div>
                   )}
 
@@ -208,13 +208,13 @@ export function TriageGroupCard({ group }: { group: TriageGroup }) {
 
                   {/* Folder and filename signals */}
                   <div className="truncate">
-                    <strong>Folder:</strong> {item.signals.folder.folderName}
+                    <strong>Folder:</strong> {(item.signals as any).folder.folderName}
                   </div>
                   <div className="truncate">
                     <strong>Filename:</strong>{' '}
-                    {item.signals.filename.seriesName ?? <em>n/a</em>}
-                    {item.signals.filename.issueNumber && ` #${item.signals.filename.issueNumber}`}
-                    {item.signals.filename.year && ` (${item.signals.filename.year})`}
+                    {(item.signals as any).filename.seriesName ?? <em>n/a</em>}
+                    {(item.signals as any).filename.issueNumber && ` #${(item.signals as any).filename.issueNumber}`}
+                    {(item.signals as any).filename.year && ` (${(item.signals as any).filename.year})`}
                   </div>
 
                   {/* raw JSON for deep inspection */}

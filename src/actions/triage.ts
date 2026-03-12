@@ -68,6 +68,20 @@ export async function getTriageItems(): Promise<TriageGroup[]> {
       createdAt: triageQueue.created_at,
       seriesName: series.name,
       seriesPublisher: series.publisher,
+    })
+    .from(triageQueue)
+    .leftJoin(series, eq(triageQueue.matched_series_id, series.id))
+    .where(eq(triageQueue.status, 'pending'))
+    .orderBy(desc(triageQueue.created_at));
+
+  // Group by parent folder path
+  const groupMap = new Map<string, TriageItem[]>();
+
+  for (const row of rows) {
+    const folderPath = path.dirname(row.filePath);
+    const item: TriageItem = {
+      id: row.id,
+      filePath: row.filePath,
       fileSize: row.fileSize,
       suggestedSeries: row.suggestedSeries,
       suggestedTitle: row.suggestedTitle,
@@ -115,6 +129,7 @@ export async function getTriageItems(): Promise<TriageGroup[]> {
 
     let suggestedSeriesId: string | null = null;
     let suggestedSeriesName: string | null = null;
+    let suggestedSeriesPublisher: string | null = null;
 
     if (seriesIdCounts.size > 0) {
       // Pick the series ID that appears most often
@@ -158,6 +173,7 @@ export async function getTriageItems(): Promise<TriageGroup[]> {
       items,
       suggestedSeriesId,
       suggestedSeriesName,
+      suggestedSeriesPublisher,
       avgConfidence,
     });
   }
