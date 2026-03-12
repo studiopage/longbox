@@ -145,9 +145,11 @@ const MEDIA_VARIANTS: Record<string, 'warning' | 'error'> = {
 export default function HealthPage() {
   const [mediaStatus, setMediaStatus] = useState<AuditStatus>('idle');
   const [mediaResult, setMediaResult] = useState<MediaResult | null>(null);
+  const [mediaFixing, setMediaFixing] = useState(false);
 
   const [consistencyStatus, setConsistencyStatus] = useState<AuditStatus>('idle');
   const [consistencyResult, setConsistencyResult] = useState<ConsistencyResult | null>(null);
+  const [consistencyFixing, setConsistencyFixing] = useState(false);
 
   const [namingStatus, setNamingStatus] = useState<AuditStatus>('idle');
   const [namingResult, setNamingResult] = useState<NamingResult | null>(null);
@@ -192,6 +194,48 @@ export default function HealthPage() {
     runMediaAudit();
     runConsistencyAudit();
     runNamingAudit();
+  };
+
+  const fixMissingFiles = async () => {
+    setMediaFixing(true);
+    try {
+      const { cleanupMissingFiles } = await import('@/actions/data-hygiene');
+      await cleanupMissingFiles();
+      // Re-run audit to refresh results
+      await runMediaAudit();
+    } catch (error) {
+      console.error('Cleanup failed:', error);
+    } finally {
+      setMediaFixing(false);
+    }
+  };
+
+  const fixEmptySeries = async () => {
+    setConsistencyFixing(true);
+    try {
+      const { cleanupEmptySeries } = await import('@/actions/data-hygiene');
+      await cleanupEmptySeries();
+      // Re-run audit to refresh results
+      await runConsistencyAudit();
+    } catch (error) {
+      console.error('Cleanup failed:', error);
+    } finally {
+      setConsistencyFixing(false);
+    }
+  };
+
+  const backfillPages = async () => {
+    setConsistencyFixing(true);
+    try {
+      const { backfillPageCounts } = await import('@/actions/data-hygiene');
+      await backfillPageCounts(50);
+      // Re-run audit to refresh results
+      await runConsistencyAudit();
+    } catch (error) {
+      console.error('Backfill failed:', error);
+    } finally {
+      setConsistencyFixing(false);
+    }
   };
 
   const totalIssues =
@@ -336,6 +380,38 @@ export default function HealthPage() {
               <div className="grid grid-cols-2 gap-4">
                 <StatCard icon={Type} label="No Publisher" value={consistencyResult.stats.seriesWithoutPublisher} variant={consistencyResult.stats.seriesWithoutPublisher > 0 ? 'warning' : 'success'} />
                 <StatCard icon={Type} label="No Year" value={consistencyResult.stats.seriesWithoutYear} variant={consistencyResult.stats.seriesWithoutYear > 0 ? 'warning' : 'success'} />
+              </div>
+
+              {/* Fix buttons */}
+              <div className="flex gap-2 flex-wrap">
+                {consistencyResult.stats.booksZeroSize > 0 && (
+                  <button
+                    onClick={fixMissingFiles}
+                    disabled={consistencyFixing}
+                    className="flex items-center gap-2 bg-destructive/10 text-destructive hover:bg-destructive/20 px-4 py-2 rounded font-medium text-sm transition-colors disabled:opacity-50"
+                  >
+                    {consistencyFixing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <XCircle className="w-4 h-4" />
+                    )}
+                    Fix Missing Files ({consistencyResult.stats.booksZeroSize})
+                  </button>
+                )}
+                {consistencyResult.stats.booksZeroPages > 0 && (
+                  <button
+                    onClick={backfillPages}
+                    disabled={consistencyFixing}
+                    className="flex items-center gap-2 bg-yellow-500/10 text-yellow-500/70 hover:bg-yellow-500/20 px-4 py-2 rounded font-medium text-sm transition-colors disabled:opacity-50"
+                  >
+                    {consistencyFixing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4" />
+                    )}
+                    Backfill Page Counts ({consistencyResult.stats.booksZeroPages})
+                  </button>
+                )}
               </div>
               {consistencyResult.issues.length > 0 && (
                 <details>
