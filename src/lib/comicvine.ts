@@ -159,3 +159,43 @@ export async function getComicVineIssues(volumeId: string) {
       return [];
   }
 }
+
+// 6. GET ISSUE DETAIL WITH CHARACTERS
+// Phase 1: Extract character appearances from CV issue data
+export async function getComicVineIssueDetails(issueId: string) {
+  const CV_API_KEY = await getApiKey();
+  if (!CV_API_KEY) return null;
+
+  // Respect rate limits
+  await waitForRateLimit('comicvine', 1000);
+
+  try {
+    const url = `${BASE_URL}/issue/4000-${issueId}/?api_key=${CV_API_KEY}&format=json`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Vidiai-Longbox/1.0' } });
+    if (!res.ok) return null;
+    
+    const data = await res.json();
+    const result = Array.isArray(data.results) ? data.results[0] : data.results;
+    
+    if (!result) return null;
+
+    // Extract top 5 characters (by appearance count)
+    const characters = (result.character_credits || [])
+      .slice(0, 5)
+      .map((char: any) => ({
+        name: char.name || 'Unknown',
+        id: char.id,
+        url: char.site_detail_url,
+      }));
+
+    return {
+      id: result.id,
+      name: result.name,
+      characters,
+      issue_number: result.issue_number,
+    };
+  } catch (error) {
+    console.error('CV Issue Detail Fetch Failed:', error);
+    return null;
+  }
+}

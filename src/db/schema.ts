@@ -241,6 +241,7 @@ export const books = pgTable('books', {
   // Enrichment Data (from Metron/other sources)
   credits: jsonb('credits'), // [{creator: "Name", role: ["Writer"]}]
   story_arcs: jsonb('story_arcs'), // [{id: 1, name: "Arc Name"}]
+  main_characters: jsonb('main_characters'), // [{name: "Character Name", id: 4005, url: "..."}]
   match_flags: text('match_flags').array(), // ["low_confidence", "needs_metadata"]
 
   created_at: timestamp('created_at').defaultNow(),

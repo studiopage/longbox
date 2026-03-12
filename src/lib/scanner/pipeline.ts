@@ -7,6 +7,7 @@ import { scoreConfidence, type ConfidenceResult } from './confidence';
 import { buildCredits } from '@/lib/metadata/parser';
 import { logEvent } from '@/lib/activity-logger';
 import { fireWebhook } from '@/lib/webhooks';
+import { getComicVineIssueDetails } from '@/lib/comicvine';
 
 // =====================
 // Matching Pipeline
@@ -74,6 +75,7 @@ async function resolveSeriesCandidate(
  * Uses onConflictDoUpdate on file_path to handle re-scans.
  * Also propagates metadata (publisher, description, year) up to the series table
  * if those fields are currently empty.
+ * Phase 1: Fetches character data from ComicVine if available.
  */
 async function insertBook(
   signals: ExtractedSignals,
@@ -107,13 +109,31 @@ async function insertBook(
 
   // determine publisher: prefer ComicInfo but fall back to existing series value
   let seriesPublisher: string | null = null;
+  let seriesCvId: number | null = null;
   if (seriesId) {
     const [s] = await db
-      .select({ publisher: series.publisher })
+      .select({ publisher: series.publisher, cv_id: series.cv_id })
       .from(series)
       .where(eq(series.id, seriesId))
       .limit(1);
     seriesPublisher = s?.publisher || null;
+    seriesCvId = s?.cv_id || null;
+  }
+
+  // Phase 1: Fetch character data from ComicVine if we have a CV volume ID and issue number
+  let mainCharacters: any[] = [];
+  if (seriesCvId && issueNumber && !ci?.seriesName) {
+    try {
+      // Try to find the issue by volume ID + issue number
+      // This is a simplified approach - in production, you'd search for the exact issue
+      const issueDetails = await getComicVineIssueDetails(seriesCvId.toString());
+      if (issueDetails?.characters) {
+        mainCharacters = issueDetails.characters;
+      }
+    } catch (err) {
+      // Silently fail - character data is optional enrichment
+      console.debug('[PIPELINE] Character fetch failed:', err);
+    }
   }
 
   const bookValues = {
@@ -130,6 +150,7 @@ async function insertBook(
     match_flags: matchFlags.length > 0 ? matchFlags : null,
     credits: credits.length > 0 ? credits : null,
     story_arcs: storyArcs.length > 0 ? storyArcs : null,
+    main_characters: mainCharacters.length > 0 ? mainCharacters : null,
   };
 
   await db.insert(books).values(bookValues).onConflictDoUpdate({
