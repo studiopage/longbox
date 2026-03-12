@@ -44,7 +44,7 @@ export async function NeedsAttention() {
       {
         label: 'Review Queue',
         count: reviewQueue,
-        href: '/review',
+        href: '/triage',
         description: 'Files awaiting series match',
         icon: <FileQuestion className="w-4 h-4" />,
         variant: reviewQueue > 0 ? 'warning' : 'default',
@@ -52,7 +52,7 @@ export async function NeedsAttention() {
       {
         label: 'Unmatched Series',
         count: unmatchedSeries,
-        href: '/import',
+        href: '/discovery',
         description: 'Series without ComicVine match',
         icon: <Link2Off className="w-4 h-4" />,
         variant: unmatchedSeries > 0 ? 'info' : 'default',
