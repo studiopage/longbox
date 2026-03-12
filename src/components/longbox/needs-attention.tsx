@@ -52,7 +52,7 @@ export async function NeedsAttention() {
       {
         label: 'Unmatched Series',
         count: unmatchedSeries,
-        href: '/discovery',
+        href: '/health',
         description: 'Series without ComicVine match',
         icon: <Link2Off className="w-4 h-4" />,
         variant: unmatchedSeries > 0 ? 'info' : 'default',

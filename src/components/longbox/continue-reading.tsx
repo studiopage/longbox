@@ -7,7 +7,7 @@ import { ArrowRight, BookOpen, ImageOff } from 'lucide-react';
 import Link from 'next/link';
 import { unstable_noStore as noStore } from 'next/cache';
 
-export async function ContinueReading() {
+export async function ContinueReading({ offset = 0 }: { offset?: number } = {}) {
   noStore();
 
   try {
@@ -29,7 +29,8 @@ export async function ContinueReading() {
       .innerJoin(series, eq(books.series_id, series.id))
       .where(eq(read_progress.is_completed, false))
       .orderBy(desc(read_progress.updated_at))
-      .limit(4);
+      .limit(4)
+      .offset(offset);
 
     if (inProgressBooks.length === 0) {
       return null;
