@@ -24,6 +24,7 @@ declare module 'next-auth' {
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   // Using JWT strategy, so we don't need the full adapter for sessions
   // Only using adapter for OAuth account linking
   adapter: DrizzleAdapter(db, {
