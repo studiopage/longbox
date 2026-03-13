@@ -38,7 +38,7 @@ services:
       LIBRARY_PATH: /comics
       # Auth (generate your own: openssl rand -base64 32)
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env or environment}
-      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
+      # AUTH_URL intentionally omitted — trustHost: true handles multi-IP access (LAN, ZeroTier, localhost)
     depends_on:
       longbox-db:
         condition: service_healthy
