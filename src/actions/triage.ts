@@ -2,7 +2,7 @@
 
 import { db } from '@/db';
 import { triageQueue, series, books } from '@/db/schema';
-import { eq, sql, and, desc } from 'drizzle-orm';
+import { eq, sql, and, desc, inArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import path from 'path';
 import { logEvent } from '@/lib/activity-logger';
@@ -228,21 +228,25 @@ export async function getTriageCounts(): Promise<{
 /**
  * Approve all pending triage items in a folder, linking them to a series.
  * If seriesId is null, creates a new local series from the first item's suggested name.
+ * itemIds: explicit list of triage item IDs to approve (preferred over folderPath LIKE query).
  */
 export async function approveGroup(
   folderPath: string,
-  seriesId: string | null
+  seriesId: string | null,
+  itemIds?: string[]
 ): Promise<{ success: boolean; count?: number; message?: string }> {
   try {
-    // Select all pending items in this folder
+    // Select all pending items — prefer explicit IDs over folder LIKE query
     const items = await db
       .select()
       .from(triageQueue)
       .where(
-        and(
-          sql`${triageQueue.file_path} LIKE ${escapeLikePattern(folderPath) + '/%'} ESCAPE '\\'`,
-          eq(triageQueue.status, 'pending')
-        )
+        itemIds && itemIds.length > 0
+          ? and(inArray(triageQueue.id, itemIds), eq(triageQueue.status, 'pending'))
+          : and(
+              sql`${triageQueue.file_path} LIKE ${escapeLikePattern(folderPath) + '/%'} ESCAPE '\\'`,
+              eq(triageQueue.status, 'pending')
+            )
       );
 
     if (items.length === 0) {

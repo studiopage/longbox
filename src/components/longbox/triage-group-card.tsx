@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import path from 'path';
 import {
   ChevronDown,
@@ -37,14 +38,21 @@ export function TriageGroupCard({ group }: { group: TriageGroup }) {
 
   function handleApprove() {
     startTransition(async () => {
-      await approveGroup(group.folderPath, group.suggestedSeriesId);
-      router.refresh();
+      const ids = group.items.map(i => i.id);
+      const result = await approveGroup(group.folderPath, group.suggestedSeriesId, ids);
+      if (result.success) {
+        toast.success(`Approved ${result.count} file${result.count === 1 ? '' : 's'}`);
+        router.refresh();
+      } else {
+        toast.error(result.message ?? 'Approve failed');
+      }
     });
   }
 
   function handleReject() {
     startTransition(async () => {
       await rejectGroup(group.folderPath);
+      toast.success('Group rejected');
       router.refresh();
     });
   }
@@ -173,49 +181,57 @@ export function TriageGroupCard({ group }: { group: TriageGroup }) {
               {/* Signal details for context */}
               {item.signals && (
                 <div className="px-4 pb-2 text-xs text-muted-foreground bg-muted/5">
-                  {/* ComicInfo signal summary */}
-                  <div className="truncate">
-                    <strong>CI:</strong>{' '}
-                    {(item.signals as any).comicInfo ? (
+                  {(() => {
+                    const s = item.signals as Record<string, Record<string, unknown>>;
+                    const ci = s.comicInfo;
+                    const folder = s.folder;
+                    const filename = s.filename;
+                    return (
                       <>
-                        {(item.signals as any).comicInfo.seriesName ?? <em>no series</em>}
-                        {(item.signals as any).comicInfo.issueNumber && ` #${(item.signals as any).comicInfo.issueNumber}`}
-                        {(item.signals as any).comicInfo.title && ` – ${(item.signals as any).comicInfo.title}`}
-                        {(item.signals as any).comicInfo.year && ` (${(item.signals as any).comicInfo.year})`}
-                        {(item.signals as any).comicInfo.publisher && ` — ${(item.signals as any).comicInfo.publisher}`}
+                        <div className="truncate">
+                          <strong>CI:</strong>{' '}
+                          {ci ? (
+                            <>
+                              {String(ci.seriesName ?? '')}
+                              {ci.issueNumber && ` #${ci.issueNumber}`}
+                              {ci.title && ` – ${ci.title}`}
+                              {ci.year && ` (${ci.year})`}
+                              {ci.publisher && ` — ${ci.publisher}`}
+                            </>
+                          ) : (
+                            <em>none</em>
+                          )}
+                        </div>
+                        <div className="truncate">
+                          <strong>Size:</strong> {formatBytes(item.fileSize)}
+                        </div>
+                        {ci?.publisher && (
+                          <div className="truncate">
+                            <strong>Publisher:</strong> {String(ci.publisher)}
+                          </div>
+                        )}
+                        {item.createdAt && (
+                          <div className="truncate">
+                            <strong>Queued:</strong>{' '}
+                            {new Date(item.createdAt).toLocaleString()}
+                          </div>
+                        )}
+                        {folder && (
+                          <div className="truncate">
+                            <strong>Folder:</strong> {String(folder.folderName ?? '')}
+                          </div>
+                        )}
+                        {filename && (
+                          <div className="truncate">
+                            <strong>Filename:</strong>{' '}
+                            {String(filename.seriesName ?? 'n/a')}
+                            {filename.issueNumber ? ` #${String(filename.issueNumber)}` : null}
+                            {filename.year ? ` (${String(filename.year)})` : null}
+                          </div>
+                        )}
                       </>
-                    ) : (
-                      <em>none</em>
-                    )}
-                  </div>
-
-                  <div className="truncate">
-                    <strong>Size:</strong> {formatBytes(item.fileSize)}
-                  </div>
-
-                  {(item.signals as any).comicInfo?.publisher && (
-                    <div className="truncate">
-                      <strong>Publisher:</strong> {(item.signals as any).comicInfo.publisher}
-                    </div>
-                  )}
-
-                  {item.createdAt && (
-                    <div className="truncate">
-                      <strong>Queued:</strong>{' '}
-                      {new Date(item.createdAt).toLocaleString()}
-                    </div>
-                  )}
-
-                  {/* Folder and filename signals */}
-                  <div className="truncate">
-                    <strong>Folder:</strong> {(item.signals as any).folder.folderName}
-                  </div>
-                  <div className="truncate">
-                    <strong>Filename:</strong>{' '}
-                    {(item.signals as any).filename.seriesName ?? <em>n/a</em>}
-                    {(item.signals as any).filename.issueNumber && ` #${(item.signals as any).filename.issueNumber}`}
-                    {(item.signals as any).filename.year && ` (${(item.signals as any).filename.year})`}
-                  </div>
+                    );
+                  })()}
 
                   {/* raw JSON for deep inspection */}
                   <details className="mt-1 text-xs text-muted-foreground">
